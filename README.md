@@ -2,7 +2,7 @@
 
 Bayer RAW上の単一ホットサンプルが、demosaic、white balance、color correction matrix、clipを経て最終RGBへ到達するまでを、QuartoとPythonで追跡する実験記事です。
 
-公開記事: https://goldkiss2010-ai.github.io/hot-pixel-journey/
+公開記事: https://goldkiss2010-ai.github.io/hot-pixel-journey-public/
 
 ## 内容
 
