@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+/.quarto/
+**/*.quarto_ipynb
+_site/
+index_files/
+.DS_Store
+Thumbs.db
+_freeze/
+/_*.local
