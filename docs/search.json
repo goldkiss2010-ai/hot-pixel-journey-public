@@ -1,0 +1,156 @@
+[
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "ホットピクセルの一生",
+    "section": "",
+    "text": "暗い写真を拡大すると、赤や緑の点、あるいは小さな色の斑点が見えることがある。\nそれを私たちはしばしば「センサーのホットピクセル」や「カラーノイズ」と呼ぶ。最終画像に見えている色付きの点は、センサー上の1サンプルから始まり、デモザイクと色変換を経て形成される。\nBayer型の撮像素子では、各受光位置が記録するのは R / G / B のうち1成分だけである。欠けている2成分は、後段の demosaic（デモザイク） によって推定される。\nそこで今回は、できるだけ単純な問いから始める。\n\nBayer RAW上で、たった1つの赤サンプルだけが異常値を持っていたら、その1点はRGB画像になるまでに何が起こるのか。\n\nこの1点を、処理の各段階で追跡する。\n\n\n\n\n\n\nノート今回の目的\n\n\n\nここでは合成したRGGB Bayerデータを採用し、再構成アルゴリズムそのものが1つの外れ値をどのように変換するかを調べる。"
+  },
+  {
+    "objectID": "index.html#はじめに",
+    "href": "index.html#はじめに",
+    "title": "ホットピクセルの一生",
+    "section": "",
+    "text": "暗い写真を拡大すると、赤や緑の点、あるいは小さな色の斑点が見えることがある。\nそれを私たちはしばしば「センサーのホットピクセル」や「カラーノイズ」と呼ぶ。最終画像に見えている色付きの点は、センサー上の1サンプルから始まり、デモザイクと色変換を経て形成される。\nBayer型の撮像素子では、各受光位置が記録するのは R / G / B のうち1成分だけである。欠けている2成分は、後段の demosaic（デモザイク） によって推定される。\nそこで今回は、できるだけ単純な問いから始める。\n\nBayer RAW上で、たった1つの赤サンプルだけが異常値を持っていたら、その1点はRGB画像になるまでに何が起こるのか。\n\nこの1点を、処理の各段階で追跡する。\n\n\n\n\n\n\nノート今回の目的\n\n\n\nここでは合成したRGGB Bayerデータを採用し、再構成アルゴリズムそのものが1つの外れ値をどのように変換するかを調べる。"
+  },
+  {
+    "objectID": "index.html#bayer-rawでは1サイトが1成分を記録する",
+    "href": "index.html#bayer-rawでは1サイトが1成分を記録する",
+    "title": "ホットピクセルの一生",
+    "section": "2 Bayer RAWでは1サイトが1成分を記録する",
+    "text": "2 Bayer RAWでは1サイトが1成分を記録する\nRGGB Bayer配列では、各位置で観測されるのは1色だけである。Rサイトにある大きな値は、完成RGB画像になる前の、赤チャネルを観測した1サンプルである。\nまず、Bayer配列と今回追跡する1点を模式図で確認する。\n\n\n\n\n\n\n\n\n図 1: RGGB Bayer配列の基本構造。各受光位置はR / G / Bのうち1成分だけを記録し、今回はRサイト1点の異常を追跡する。\n\n\n\n\n\n次に、完全な黒を仮定し、中央付近のRサイトだけを1とする。\n\n\n\n\n\n\n\n\n図 2: RGGB Bayer配列上の単一ホットピクセル。Rサイト1点だけ値を1とし、それ以外は0とした模式例。\n\n\n\n\n\nここからデモザイクによって各位置の3成分\n\\[\n(R,G,B)\n\\]\nを構成する。\nデモザイクは、観測されなかった成分を推定してRGB画像を再構成する操作である。"
+  },
+  {
+    "objectID": "index.html#bilinear異常値は広がるが新しい極値は作らない",
+    "href": "index.html#bilinear異常値は広がるが新しい極値は作らない",
+    "title": "ホットピクセルの一生",
+    "section": "3 Bilinear：異常値は広がるが、新しい極値は作らない",
+    "text": "3 Bilinear：異常値は広がるが、新しい極値は作らない\nまず模式図で、1点の異常がどのように周囲へ広がるかを見る。\n\n\n\n\n\n\n\n\n図 3: Bilinear補間の模式図。同じRサイト1点の異常は周囲へ滑らかに広がるが、正規化された正の重みだけを使うため、新しい極値は作らない。\n\n\n\n\n\n単純なbilinear補間では、欠損値を\n\\[\n\\hat{x}=\\sum_i w_i x_i\n\\]\nで補い、\n\\[\nw_i \\ge 0,\\qquad \\sum_i w_i=1\n\\]\nなら、これは近傍サンプルの凸結合になる。したがって\n\\[\n\\min_i x_i \\le \\hat{x} \\le \\max_i x_i\n\\]\nが必ず成り立つ。\n入力がすべて\n\\[\n0 \\le x_i \\le 1\n\\]\nなら、bilinear補間だけで新たに負値や1を超える値を作ることはない。\n\n\n\n\n\n\n\n\n図 4: Bilinear demosaic後。異常値は周辺へ伝播するが、入力範囲を超える新しい値は生成されない。\n\n\n\n\n\n単一サンプルの影響は、欠損成分の補間に使われることで周辺へ広がる。\nただし、ここでは 拡散と増幅は別物 である。"
+  },
+  {
+    "objectID": "index.html#mhc負係数を含む線形再構成",
+    "href": "index.html#mhc負係数を含む線形再構成",
+    "title": "ホットピクセルの一生",
+    "section": "4 MHC：負係数を含む線形再構成",
+    "text": "4 MHC：負係数を含む線形再構成\n次にMalvar–He–Cutler（MHC）法を考える (Malvar ほか 2004年; Getreuer 2011年)。\nMHCは2004年に提案された、Bayer CFA向けの固定線形demosaicである。Bilinear補間を土台にしながら、5×5近傍から得たLaplacian型のクロスチャネル補正を加える。計算は局所的な線形フィルタで完結し、Bilinearよりエッジ付近の色ずれを抑えながら、比較的単純な構造を保つ。\n古典的なdemosaic法の中では、MHCは「単純なBilinear」と「入力内容に応じて処理を切り替える適応的手法」の中間に位置する。現在のRAW現像全般を代表する唯一の方式という意味ではなく、高品質な固定線形法の代表例として扱いやすい。IPOLでも、単純な5×5線形フィルタで良好な結果を得る方法として整理されている (Getreuer 2011年)。\n本稿ではBilinearとMHCの組を意図的に採用する。Bilinearは非負の正規化重みによる凸補間、MHCは負係数を含む固定線形再構成である。この2つを並べると、「線形であること」と「入力範囲を保存すること」は別の性質だと切り分けやすい。\nAHD、Hamilton–Adams、VNGのような方向選択・エッジ適応型のdemosaicを加えると、次には入力に応じて演算子そのものが変わるという別の論点が入る。これは重要だが、まず固定演算子の挙動を追う本稿では次段の比較対象とする。\n同じ1点異常を入れても、MHCでは符号付きの補正係数が使われるため、広がり方が変わる。\n\n\n\n\n\n\n\n\n図 5: MHC補間の模式図。方向性を持つ補正フィルタは負の係数を含み、入力にはなかったovershoot / undershootを作り得る。\n\n\n\n\n\nMHCも線形フィルタであり、勾配補正を含むためカーネルに負係数を持つ。この符号付き重みが範囲外値を生成し得る。\n負係数を含む線形演算では、\n\\[\n0 \\le x_i \\le 1\n\\]\nであっても\n\\[\n\\hat{x}&lt;0,\\qquad \\hat{x}&gt;1\n\\]\nが可能になる。\n線形であることと、入力範囲を保存することは別の性質である。\n\n\n\n\n表 1: MHC各カーネルが、独立な入力 x_i ∈ [0,1] に対して理論上取り得る出力範囲。\n\n\n\n\n\n\n\n\n\n\nkernel\nminimum\nmaximum\n\n\n\n\n0\nG at R/B\n-0.50\n1.50\n\n\n1\nR/B at G\n-0.75\n1.75\n\n\n2\nR at B / B at R\n-0.75\n1.75\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n図 6: MHC後。表示用画像は0–1へクリップしているが、内部値には負のundershootが生じる。"
+  },
+  {
+    "objectID": "index.html#点の異常は数値的にはどう変わったか",
+    "href": "index.html#点の異常は数値的にはどう変わったか",
+    "title": "ホットピクセルの一生",
+    "section": "5 1点の異常は、数値的にはどう変わったか",
+    "text": "5 1点の異常は、数値的にはどう変わったか\n\n\n\n\n表 2: 単一Rホットピクセルに対するbilinearとMHCの比較\n\n\n\n\n\n\n\n\n\n\nmethod\naffected_pixels\nout_of_range_pixels\nminimum\nmaximum\n\n\n\n\n0\nBilinear\n9\n0\n0.0000\n1.0\n\n\n1\nMHC\n13\n4\n-0.1875\n1.0\n\n\n\n\n\n\n\n\n\n\nbilinearは異常サンプルを周辺へ広げるものの、出力は0–1に留まる。\n一方MHCでは、単一の正の外れ値から周囲に負値が生じる。\nこの負値はデモザイク計算によって生成された値であり、センサー値とは区別される。\n\\[\n\\text{sensor sample}\n\\rightarrow\n\\text{reconstruction}\n\\rightarrow\n\\text{new extrema}\n\\]\nという順序で生成される。"
+  },
+  {
+    "objectID": "index.html#異常1点の三つの段階",
+    "href": "index.html#異常1点の三つの段階",
+    "title": "ホットピクセルの一生",
+    "section": "6 「異常1点」の三つの段階",
+    "text": "6 「異常1点」の三つの段階\nホットピクセルについて、少なくとも三つを区別したい。\n\nRAW段階の異常値\nセンサー上で実際に記録された外れ値。\n補間による空間的な伝播\n1サンプルが複数の再構成画素へ利用されることで影響範囲が広がる。\n非凸な再構成によるovershoot / undershoot\n入力には存在しなかった極値が演算によって生じる。\n\nこの区別をしないと、「画像に赤い斑点が見える」という観察だけから、異常の発生源を逆算することは難しい。"
+  },
+  {
+    "objectID": "index.html#ホットピクセルだけの特殊な話なのか",
+    "href": "index.html#ホットピクセルだけの特殊な話なのか",
+    "title": "ホットピクセルの一生",
+    "section": "7 ホットピクセルだけの特殊な話なのか",
+    "text": "7 ホットピクセルだけの特殊な話なのか\n次に、入力そのものには範囲外値がない状態で、通常の鋭い明暗境界を与える。\n\n\n\n\n表 3: 0–1内の明暗境界に対するdemosaic後の範囲逸脱。\n\n\n\n\n\n\n\n\n\n\nscene\ncondition\nmethod\naffected_pixels\nout_of_range_pixels\nminimum\nmaximum\n\n\n\n\n0\nneutral vertical step\nclean\nBilinear\n65536\n0\n0.050000\n0.980000\n\n\n1\nneutral vertical step\nclean\nMHC\n65536\n768\n-0.124375\n1.154375\n\n\n2\nneutral vertical step\nshot noise\nBilinear\n65536\n4336\n0.035400\n1.040771\n\n\n3\nneutral vertical step\nshot noise\nMHC\n65536\n6506\n-0.133835\n1.207138\n\n\n4\nneutral diagonal step\nclean\nBilinear\n65536\n0\n0.080000\n0.980000\n\n\n5\nneutral diagonal step\nclean\nMHC\n65536\n762\n-0.145000\n1.317500\n\n\n6\nneutral diagonal step\nshot noise\nBilinear\n65536\n4244\n0.061035\n1.040771\n\n\n7\nneutral diagonal step\nshot noise\nMHC\n65536\n6488\n-0.160645\n1.340057\n\n\n\n\n\n\n\n\n\n\n入力RAWを0–1に制限していても、非凸な再構成では境界近傍で新しい極値を作り得る。\nshot noiseの局所的な揺らぎは、負係数を含む再構成を通ることでovershoot / undershootの引き金になり得る。"
+  },
+  {
+    "objectID": "index.html#r-gr-gb-bで1点異常の広がり方は同じか",
+    "href": "index.html#r-gr-gb-bで1点異常の広がり方は同じか",
+    "title": "ホットピクセルの一生",
+    "section": "8 R / Gr / Gb / Bで、1点異常の広がり方は同じか",
+    "text": "8 R / Gr / Gb / Bで、1点異常の広がり方は同じか\nRGGB配列には、赤・青に加えて2つの緑位相がある。\n\nGr: 赤と同じ行にあるG\nGb: 青と同じ行にあるG\n\n同じ値1のホットサンプルを、R / Gr / Gb / B の各サイトに1つずつ置いて比較する。\n\n\n\n\n表 4: CFA位相ごとの単一ホットサンプル伝播。入力値はすべて1、背景は0。\n\n\n\n\n\n\n\n\n\n\nsite\nmethod\naffected_pixels\nout_of_range_pixels\nout_of_range_components\nminimum\nmaximum\n\n\n\n\n0\nR\nBilinear\n9\n0\n0\n0.0000\n1.0\n\n\n1\nR\nMHC\n13\n4\n8\n-0.1875\n1.0\n\n\n2\nGr\nBilinear\n5\n0\n0\n0.0000\n1.0\n\n\n3\nGr\nMHC\n13\n8\n12\n-0.1250\n1.0\n\n\n4\nGb\nBilinear\n5\n0\n0\n0.0000\n1.0\n\n\n5\nGb\nMHC\n13\n8\n12\n-0.1250\n1.0\n\n\n6\nB\nBilinear\n9\n0\n0\n0.0000\n1.0\n\n\n7\nB\nMHC\n13\n4\n8\n-0.1875\n1.0\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n図 7: R / Gr / Gb / B各サイトに置いた単一ホットサンプルの再構成結果。表示のみ0–1へクリップしている。\n\n\n\n\n\nこの比較では、単に「何色のホットピクセルか」だけでなく、CFA格子上の位相が再構成後の空間パターンに影響する。\n特にGrとGbはどちらも緑だが、MHCの方向別カーネルに対して90度回転した関係にある。"
+  },
+  {
+    "objectID": "index.html#デモザイク前に欠陥補正すると何が変わるか",
+    "href": "index.html#デモザイク前に欠陥補正すると何が変わるか",
+    "title": "ホットピクセルの一生",
+    "section": "9 デモザイク前に欠陥補正すると何が変わるか",
+    "text": "9 デモザイク前に欠陥補正すると何が変わるか\n実際の処理では、既知の欠陥画素をデモザイク前に補正する場合がある。\nここでは18%の一様な中性面を作り、その1サンプルだけを1.0へ置き換える。補正は極めて単純な例として、同じCFA位相の近傍中央値で置換する。\n\n\n\n\n表 5: 単一欠陥サンプルをデモザイク前に補正した場合の誤差。補正法は説明用の同位相中央値。\n\n\n\n\n\n\n\n\n\n\nmethod\ncondition\naffected_pixels\nout_of_range_pixels\nout_of_range_components\nminimum\nmaximum\ndelta_l1\ndelta_l2\nchanged_pixels\n\n\n\n\n0\nBilinear\ndefect present\n441\n0\n0\n0.18000\n1.00\n3.28\n1.230000\n9\n\n\n1\nBilinear\npre-demosaic corrected\n441\n0\n0\n0.18000\n0.18\n0.00\n0.000000\n0\n\n\n2\nMHC\ndefect present\n441\n0\n0\n0.02625\n1.00\n5.33\n1.481825\n13\n\n\n3\nMHC\npre-demosaic corrected\n441\n0\n0\n0.18000\n0.18\n0.00\n0.000000\n0\n\n\n\n\n\n\n\n\n\n\n次に、同じ処理を局所像として見る。上段はデモザイク前のCFA、下段はMHC後の基準画像との差である。\n\n\n\n\n\n\n\n\n図 8: デモザイク前の欠陥補正。上段はCFAの局所領域、下段はMHC後の基準画像に対するRGB誤差の最大成分。1サンプルの補正が、再構成後の空間的な広がりを抑える。\n\n\n\n\n\nここでは処理順序の効果を見るため、同色近傍中央値による簡単な補正器を採用する。\n\\[\n\\text{defect correction}\n\\rightarrow\n\\text{demosaic}\n\\]\nなら1サンプルの異常を再構成前に抑えられる。一方、デモザイク後にはすでに複数画素・複数チャンネルへ影響が広がっている。"
+  },
+  {
+    "objectID": "index.html#wbゲインはすでに生じた異常をどう増幅するか",
+    "href": "index.html#wbゲインはすでに生じた異常をどう増幅するか",
+    "title": "ホットピクセルの一生",
+    "section": "10 WBゲインは、すでに生じた異常をどう増幅するか",
+    "text": "10 WBゲインは、すでに生じた異常をどう増幅するか\nホワイトバランスを\n\\[\nW=\n\\begin{pmatrix}\ng_R&0&0\\\\\n0&g_G&0\\\\\n0&0&g_B\n\\end{pmatrix}\n\\]\nとする。\nまずRサイトの単一ホットサンプルをMHCで再構成し、赤ゲインだけを1から4まで変える。\n\n\n\n\n\n\n\n\n図 9: 単一RホットサンプルをMHCで再構成した後、RのWBゲインだけを変えたときの最大値。clip前を測定。\n\n\n\n\n\nWBは画素間の空間構造を保ったまま、デモザイクですでに作られた色差や極値をチャンネル別に拡大する。\nつまり、最終的な赤い異常点の強さは\n\\[\n\\text{RAW defect}\n\\neq\n\\text{visible red intensity}\n\\]\nである。"
+  },
+  {
+    "objectID": "index.html#ccmでrgb立方体の外へさらに押し出されるか",
+    "href": "index.html#ccmでrgb立方体の外へさらに押し出されるか",
+    "title": "ホットピクセルの一生",
+    "section": "11 CCMでRGB立方体の外へさらに押し出されるか",
+    "text": "11 CCMでRGB立方体の外へさらに押し出されるか\n次にColor Correction Matrix（CCM）を\n\\[\nx'=Mx\n\\]\nとして適用する。\nカメラのR / G / Bは、そのカメラ固有の分光感度から得られる camera-native RGB である。したがって、同じ数値の\\((R,G,B)\\)でも、そのままsRGBやDisplay P3のRGB座標を意味するわけではない。RAW現像では、ホワイトバランス後のcamera-native RGBを、CIE XYZや作業用の線形RGBなど、後段で扱いやすい色表現へ結び付けるために行列変換が使われる。\nDNGの色処理モデルも、撮影光に応じたカメラ固有の行列群を持ち、white-balanced camera colorsからPCS側へ写すForwardMatrixなどを定義している (Adobe 2023年)。実際のカメラプロファイルでは、複数光源間の補間、非線形なHue/Sat補正、Look Tableなどが加わることもある。したがって、ここでいうCCMはカラーマネジメント全体ではなく、その前段にある線形な色空間変換の最小モデルである。\n処理の位置関係を単純化すると、\n$\n\\[\\begin{aligned}\n\\text{camera-native RGB}\n&\\xrightarrow{\\text{WB}}\n\\text{white-balanced camera RGB}\n\\\\[4pt]\n&\\xrightarrow{\\text{CCM / profile}}\n\\text{XYZ or working RGB}\n\\\\[4pt]\n&\\xrightarrow{\\text{render / gamut / transfer}}\n\\text{display RGB}\n\\end{aligned}\\]\n$\nと見られる。\n本稿では、中性軸を保存しつつ負係数を含む説明用CCMを採用する。行和を1にしているため、\n\\[\nM(t,t,t)^\\mathsf{T}=(t,t,t)^\\mathsf{T}\n\\]\n色差方向ではRGB立方体外への変位を生じ得る。\n\n\n\n\n表 6: 単一RホットサンプルをMHC → WB → 説明用CCM → clipへ通した各段階の範囲。WB=(2.0,1.0,1.7)。\n\n\n\n\n\n\n\n\n\n\nstage\naffected_pixels\nout_of_range_pixels\nout_of_range_components\nminimum\nmaximum\n\n\n\n\n0\ndemosaic\n13\n4\n8\n-0.18750\n1.00000\n\n\n1\nwhite balance\n13\n5\n10\n-0.31875\n2.00000\n\n\n2\nCCM\n13\n13\n30\n-0.40250\n2.55875\n\n\n3\nclip\n13\n0\n0\n0.00000\n1.00000\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n図 10: 同じ単一ホットサンプルを処理段階ごとに追跡。表示時だけ0–1に制限しているため、数値表ではclip前の範囲逸脱が確認できる。\n\n\n\n\n\nここで初めて、「1つのセンサー異常」が最終表示RGBに至るまでの連鎖を同じデータで追える。\n\\[\n\\text{CFA}\n\\rightarrow\n\\text{Demosaic}\n\\rightarrow\n\\text{WB}\n\\rightarrow\n\\text{CCM}\n\\rightarrow\n\\text{Clip}\n\\]"
+  },
+  {
+    "objectID": "index.html#clipは何を隠すのか",
+    "href": "index.html#clipは何を隠すのか",
+    "title": "ホットピクセルの一生",
+    "section": "12 clipは何を隠すのか",
+    "text": "12 clipは何を隠すのか\nclip後だけを見ると、clip前にどれだけ大きなovershoot / undershootがあったかは分からない。\nそこでclipが変更した量を直接測る。\n\n\n\n\n表 7: CCM後のRGBを0–1へclipしたとき、何画素・何成分が変更されたか。\n\n\n\n\n\n\n\n\n\n\npixels_modified_by_clip\ncomponents_modified_by_clip\nclip_l1\nclip_l2\npreclip_minimum\npreclip_maximum\n\n\n\n\n0\n13\n30\n6.8125\n2.063337\n-0.4025\n2.55875\n\n\n\n\n\n\n\n\n\n\nclipそのものは各RGB成分へ独立に適用される。1成分だけ取り出すと、写像は次の折れ線になる。\n\n\n\n\n\n\n\n\n図 11: 0–1 clipの1成分あたりの写像。灰色の点は今回のCCM後RGBに実際に現れた成分値。0未満は0へ、1を超えた値は1へ写るため、異なるpreclip値が同じ出力値を共有する。\n\n\n\n\n\nこの意味で、最終画像上の「飽和した赤点」だけを観察しても、その直前のRGBベクトルが\n\\[\n(1.02,0.01,0.00)\n\\]\nだったのか、\n\\[\n(2.8,-0.4,-0.2)\n\\]\nだったのかは区別できない。\nclipは、異なる内部状態を同じ境界へ写す。"
+  },
+  {
+    "objectID": "index.html#鋭い境界を回転させるとどうなるか",
+    "href": "index.html#鋭い境界を回転させるとどうなるか",
+    "title": "ホットピクセルの一生",
+    "section": "13 鋭い境界を回転させるとどうなるか",
+    "text": "13 鋭い境界を回転させるとどうなるか\nホットピクセルは極端な入力だが、負係数による範囲逸脱は通常の高コントラスト境界でも起こり得る。\n中性のstep edgeを0–175度まで回転し、方向ごとにデモザイク後の範囲逸脱を数える。\n\n\n\n\n\n\n\n\n図 12: 中性step edgeの角度と、demosaic後に0–1を外れた画素数。\n\n\n\n\n\n角度の意味を画像として確認するため、0° / 45° / 90°の入力とMHC後の範囲逸脱量を並べる。\n\n\n\n\n\n\n\n\n図 13: 代表的な3方向のstep edge。上段が入力、下段がMHC後の0–1範囲からの逸脱量。境界方向とCFA格子の関係によって、逸脱の空間パターンが変わる。\n\n\n\n\n\nこの実験では、通常の明暗エッジでも範囲逸脱が生じ得ることと、CFA格子・再構成カーネル・エッジ方向の組み合わせを同時に見る。"
+  },
+  {
+    "objectID": "index.html#shot-noiseとread-noiseはデモザイク後にどう相関するか",
+    "href": "index.html#shot-noiseとread-noiseはデモザイク後にどう相関するか",
+    "title": "ホットピクセルの一生",
+    "section": "14 Shot noiseとread noiseは、デモザイク後にどう相関するか",
+    "text": "14 Shot noiseとread noiseは、デモザイク後にどう相関するか\n次は18%の一様な面にノイズを加え、入力を単一異常から確率的な揺らぎへ広げる。\n比較用の合成ノイズは、shot noiseをPoisson過程、read noiseをGaussian成分として重ねる単純なPoisson–Gaussianモデルで構成する (Foi ほか 2008年)。\n比較するのは次の3条件である。\n\nshot noiseのみ\nread noiseのみ\nPoisson + Gaussian\n\nRAW上では各サンプルが1色だけを持つが、デモザイク後には補間によって複数チャンネルへ共有される。その結果、RGBノイズの共分散も変化する。\n\n\n\n\n表 8: 18%中性面に加えたノイズのdemosaic後統計。中央領域のみを使用。Rec.709係数を診断方向として使用。\n\n\n\n\n\n\n\n\n\n\nmethod\nnoise\nstd_R\nstd_G\nstd_B\ncorr_RG\ncorr_GB\ncorr_RB\nstd_luma709\nstd_R_minus_G\nstd_B_minus_G\n\n\n\n\n0\nBilinear\nshot only\n0.004920\n0.005262\n0.004981\n-0.003905\n-0.001156\n0.013030\n0.003920\n0.007218\n0.007250\n\n\n1\nBilinear\nread only\n0.000554\n0.000578\n0.000552\n0.001706\n-0.011432\n-0.009257\n0.000431\n0.000800\n0.000804\n\n\n2\nBilinear\nshot + read\n0.004999\n0.005286\n0.004977\n0.005332\n0.001304\n-0.000813\n0.003949\n0.007256\n0.007255\n\n\n3\nMHC\nshot only\n0.006572\n0.005877\n0.006602\n0.637512\n0.635034\n0.604720\n0.005539\n0.005337\n0.005371\n\n\n4\nMHC\nread only\n0.000732\n0.000648\n0.000728\n0.633710\n0.627305\n0.589243\n0.000611\n0.000595\n0.000598\n\n\n5\nMHC\nshot + read\n0.006608\n0.005903\n0.006585\n0.633738\n0.632442\n0.596148\n0.005557\n0.005392\n0.005389\n\n\n\n\n\n\n\n\n\n\n相関の形を直接見るため、残差を単純なチャンネル差 \\((R-G,\\ B-G)\\) に置く。ここでの2軸は知覚色空間ではなく、RGBチャンネル間の結びつきを見るための診断座標である。\n\n\n\n\n\n\n\n\n図 14: Demosaic後ノイズ残差の (R−G, B−G) 散布図。列がノイズ源、行がdemosaic法。点群の広がりと傾きが、再構成後のチャンネル間相関を可視化する。\n\n\n\n\n\nここで見ているのは、ノイズの「発生源」と「最終的な見え方」を分けるための最小例である。\n同じshot noiseでも、デモザイク法が変われば\n\nRGB各チャンネルの標準偏差\nチャンネル間相関\n共通方向の揺らぎ\n色差方向の揺らぎ\n\nが変わる。\nしたがって、最終画像上の「輝度ノイズ」「カラーノイズ」は、センサー上の物理的ノイズ源とdemosaicによる再配分の両方を反映する。"
+  },
+  {
+    "objectID": "index.html#ホットピクセル強度を上げるといつrgb境界に触れるか",
+    "href": "index.html#ホットピクセル強度を上げるといつrgb境界に触れるか",
+    "title": "ホットピクセルの一生",
+    "section": "15 ホットピクセル強度を上げると、いつRGB境界に触れるか",
+    "text": "15 ホットピクセル強度を上げると、いつRGB境界に触れるか\nここまでは異常値を1に固定していた。次は18%の一様面を背景とし、Rサイト1点だけを0.18から1.0まで連続的に上げる。\nこのとき、センサー上の値は最後まで0–1内にある。それでも後段の再構成・WB・CCMによって、最終clip前RGBは早い段階で立方体外へ出る可能性がある。\n\n\n\n\n\n\n\n\n図 15: 18%中性面上のRサイト1点を0.18→1.0へ上げたときの、CCM後clip前最大成分。\n\n\n\n\n\nRAWの1点が入力範囲内にある段階で、色変換後のRGBが境界へ接触することを直接確認できる。\nこの違いは、センサーの飽和と出力RGBのheadroomを分けて考える上で重要である。"
+  },
+  {
+    "objectID": "index.html#つのホットピクセルは単純に足し算できるか",
+    "href": "index.html#つのホットピクセルは単純に足し算できるか",
+    "title": "ホットピクセルの一生",
+    "section": "16 2つのホットピクセルは単純に足し算できるか",
+    "text": "16 2つのホットピクセルは単純に足し算できるか\nBilinearもMHCも、ここで実装した形では固定された線形作用素である。\nしたがってclip前なら、\n\\[\nD(x_1+x_2)=D(x_1)+D(x_2)\n\\]\nが成り立つはずである。\nRサイトとBサイトに1点ずつ異常を置き、数値的に確認する。\n\n\n\n\n表 9: 2つの単一異常に対する重ね合わせ誤差。clip前の線形段階とclip後を比較。\n\n\n\n\n\n\n\n\n\n\nmethod\ndemosaic_max_error\nWB_CCM_max_error\nafter_clip_max_error\n\n\n\n\n0\nBilinear\n0.0\n0.000000e+00\n0.255\n\n\n1\nMHC\n0.0\n4.440892e-16\n0.725\n\n\n\n\n\n\n\n\n\n\nMHCについて、個別入力・同時入力・clip後の重ね合わせ誤差を画像で見る。\n\n\n\n\n\n\n\n\n図 16: MHC → WB → CCMでの2点異常。左3枚は表示用に0–1へ制限したRGB像。右端はclip後の C(T(R+B)) と C(T(R))+C(T(B)) の差の最大成分で、clipが重ね合わせを壊す位置を示す。\n\n\n\n\n\nこの実験は、現在のパイプラインでどこから重ね合わせが壊れるかを明確にする。\n固定線形demosaic、WB、CCMまでは重ね合わせが保たれる。clipでは非線形性が入り、一般に\n\\[\nC(x_1+x_2)\\neq C(x_1)+C(x_2)\n\\]\nとなる。\n将来AHDのような適応的demosaicを追加すると、この非線形性がもっと前段へ移る。"
+  },
+  {
+    "objectID": "index.html#rgb立方体の中で何が起きているか",
+    "href": "index.html#rgb立方体の中で何が起きているか",
+    "title": "ホットピクセルの一生",
+    "section": "17 RGB立方体の中で何が起きているか",
+    "text": "17 RGB立方体の中で何が起きているか\nここまで追ってきた局所RGB値を、\\([0,1]^3\\) の立方体を基準にして見る。\nこの図では cubeそのものを固定した座標基準 とする。細い灰色の辺が \\([0,1]^3\\)、原点から伸びる赤・緑・青の3辺がR / G / B方向である。背景グリッドも同じ原点と0.5刻みを共有する。\n4枚とも表示範囲は \\([-0.15,1.15]^3\\) に固定する。表示枠を越えるベクトルは、cube中心からその方向へ伸ばした線と表示枠の交点に◇を置き、実際のRGB値をパネル内に記す。\n\n\n\n\n\n\n\n\n図 17: 単一Rホットサンプル周辺のRGB点群。各パネルは同じ [−0.15,1.15]^3 を表示し、灰色のワイヤーフレームが [0,1]^3。◇は表示範囲外へ伸びたRGBベクトルの方向を示し、実際の値をパネル内に記す。\n\n\n\n\n\nDemosaicでは、1サンプルから生じた複数のRGBベクトルがcube内部とその近傍に分布する。\nWBではチャンネル別ゲインによって、その点群がRGB軸方向へ引き伸ばされる。CCMでは成分間の混合が加わり、点群の向きも変化する。\nClipでは各成分が0–1へ制限され、cube外のベクトルが面・辺・頂点へ写る。ここで複数のpreclip状態が同じ境界値を共有し、headroomの情報が失われる。"
+  },
+  {
+    "objectID": "index.html#デモザイクを射影として見る",
+    "href": "index.html#デモザイクを射影として見る",
+    "title": "ホットピクセルの一生",
+    "section": "18 デモザイクを射影として見る",
+    "text": "18 デモザイクを射影として見る\nCFAによる観測を線形作用素 \\(S\\) とすると、\n\\[\ny=Sx\n\\]\nと書ける。\nBayer CFAはRGB情報の一部しか観測しないため、同じRAW \\(y\\) に対応するRGB画像は一般に一意ではない。\n\\[\n\\{x\\mid Sx=y\\}=x_0+\\ker S.\n\\]\n線形な再構成作用素を \\(D\\) とし、観測値を保存する\n\\[\nSD=I\n\\]\nが成り立つなら、\n\\[\nP=DS\n\\]\nは\n\\[\nP^2=P\n\\]\nを満たす射影になる。\nこの関係を2次元の模式図に落とすと、同じ観測値を持つ状態は \\(\\ker S\\) 方向の同じファイバーに並び、demosaicはそのファイバーから1つの代表点を選ぶ操作として描ける。\n\n\n\n\n\n\n\n\n図 18: Demosaicを射影として見た模式図。同じRAW観測に対応する状態は x₀ + ker S 上に並び、再構成作用素Dが選ぶ部分空間 range(D) との交点が P=DS による再構成点になる。\n\n\n\n\n\nこの見方では、\n\nCFA \\(S\\) が「観測できなかった方向」を決める\ndemosaic \\(D\\) が「どのRGB像として補完するか」を決める\n\nと整理できる。\n今回増やした実験をこの言葉で見ると、単一ホットサンプルは基底方向に近い入力であり、エッジ角度 sweep は構造を持つ入力群、noise実験は確率分布を持つ入力群である。\nさらに強度sweepでは、同じ入力方向に沿ってスカラーを変えたとき、再構成と色変換を経た像がどこで\\([0,1]^3\\)の境界に接触するかを見ている。"
+  },
+  {
+    "objectID": "index.html#現時点で見えてきたこと",
+    "href": "index.html#現時点で見えてきたこと",
+    "title": "ホットピクセルの一生",
+    "section": "19 現時点で見えてきたこと",
+    "text": "19 現時点で見えてきたこと\nここまでの実験はすべて同じコードから再計算されている。\n現時点では少なくとも、\n\n単一異常の伝播はR / Gr / Gb / BのCFA位相で異なる\nbilinearは凸補間なので入力範囲を保存する\nMHCは線形でも非凸なので新しい極値を作り得る\n欠陥補正の順序によって、異常が広がる前に処理できるかが変わる\nWBは再構成済みの色差をチャンネル別に増幅する\n負係数を含むCCMはさらにRGB立方体外への変位を作り得る\nclipはpreclipの逸脱量を失う\n通常の明暗境界でも方向によって範囲逸脱の出方が変わる\nshot/read noiseはdemosaic後にRGB相関を持ち、見かけの輝度・色差ノイズへ再配分される\n入力RAWが範囲内でも、後段のRGBは飽和前に境界へ接触し得る\n固定線形demosaicからCCMまでは重ね合わせが保たれ、clipで明示的に壊れる\nRGB立方体表示にすると、headroomとclipによる情報消失を幾何的に観察できる\n\nという流れを、同じQuarto文書内で検証できる。\n次段では、AHD / Hamilton–Adams / VNG系のような適応的demosaicを追加すると、固定線形演算子で見えた性質が入力依存の処理でどう変わるかを比較できる。ほかに、複数ホットピクセルの配置依存性、飽和した有彩色境界、実RAWから切り出した小領域も比較対象になる。"
+  },
+  {
+    "objectID": "index.html#参考文献",
+    "href": "index.html#参考文献",
+    "title": "ホットピクセルの一生",
+    "section": "参考文献",
+    "text": "参考文献"
+  },
+  {
+    "objectID": "index.html#github",
+    "href": "index.html#github",
+    "title": "ホットピクセルの一生",
+    "section": "GitHub",
+    "text": "GitHub\nこの記事の実験コードとQuarto文書は、hot-pixel-journey で公開している。"
+  }
+]
