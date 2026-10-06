@@ -1,0 +1,1556 @@
+---
+title: "ホットピクセルの一生"
+subtitle: "Bayer RAWからRGB画像まで、異常サンプルの運命を追う"
+date: last-modified
+---
+
+## はじめに
+
+暗い写真を拡大すると、赤や緑の点、あるいは小さな色の斑点が見えることがある。
+
+それを私たちはしばしば「センサーのホットピクセル」や「カラーノイズ」と呼ぶ。最終画像に見えている色付きの点は、センサー上の1サンプルから始まり、デモザイクと色変換を経て形成される。
+
+Bayer型の撮像素子では、各受光位置が記録するのは R / G / B のうち1成分だけである。欠けている2成分は、後段の **demosaic（デモザイク）** によって推定される。
+
+そこで今回は、できるだけ単純な問いから始める。
+
+> Bayer RAW上で、たった1つの赤サンプルだけが異常値を持っていたら、その1点はRGB画像になるまでに何が起こるのか。
+
+この1点を、処理の各段階で追跡する。
+
+::: {.callout-note}
+## 今回の目的
+
+ここでは合成したRGGB Bayerデータを採用し、再構成アルゴリズムそのものが1つの外れ値をどのように変換するかを調べる。
+:::
+
+```{python}
+#| label: setup
+#| include: false
+
+import sys
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib_inline.backend_inline import set_matplotlib_formats
+
+sys.path.insert(0, str(Path.cwd()))
+
+set_matplotlib_formats("svg")
+
+from src.diagram_style import ARTICLE_COLORS, configure_article_matplotlib
+from src.diagrams import (
+    draw_bayer_overview,
+    draw_bilinear_overview,
+    draw_mhc_overview,
+)
+
+configure_article_matplotlib()
+
+from src.demosaic import (
+    MHC_KERNELS,
+    bilinear_rggb,
+    kernel_range,
+    mhc_rggb,
+    mosaic_rggb,
+    summarize_rgb,
+)
+from src.experiments import (
+    add_poisson_gaussian_noise,
+    add_read_noise,
+    add_shot_noise,
+    diagonal_step,
+    flat_field,
+    neutral_step,
+    replace_hot_pixel_same_color_median,
+    single_hot_pixel,
+    step_edge_angle,
+)
+from src.pipeline import (
+    ILLUSTRATIVE_NEUTRAL_PRESERVING_CCM,
+    apply_ccm,
+    apply_white_balance,
+    clip_metrics,
+    clip_rgb,
+    rgb_noise_statistics,
+    stage_metrics,
+)
+```
+
+## Bayer RAWでは1サイトが1成分を記録する
+
+RGGB Bayer配列では、各位置で観測されるのは1色だけである。Rサイトにある大きな値は、完成RGB画像になる前の、赤チャネルを観測した1サンプルである。
+
+まず、Bayer配列と今回追跡する1点を模式図で確認する。
+
+```{python}
+#| label: fig-bayer-overview
+#| fig-cap: "RGGB Bayer配列の基本構造。各受光位置はR / G / Bのうち1成分だけを記録し、今回はRサイト1点の異常を追跡する。"
+#| fig-width: 10.5
+#| fig-height: 3.6
+
+draw_bayer_overview()
+plt.show()
+```
+
+次に、完全な黒を仮定し、中央付近のRサイトだけを1とする。
+
+```{python}
+#| label: fig-bayer-hotpixel
+#| fig-cap: "RGGB Bayer配列上の単一ホットピクセル。Rサイト1点だけ値を1とし、それ以外は0とした模式例。"
+#| fig-width: 5
+#| fig-height: 5
+
+raw, hot_xy = single_hot_pixel(size=21, channel="R")
+
+fig, ax = plt.subplots(figsize=(5, 5))
+ax.imshow(raw, vmin=0, vmax=1, interpolation="nearest")
+ax.scatter([hot_xy[1]], [hot_xy[0]], s=100, facecolors="none", edgecolors="white")
+ax.set_title("Single hot sample on Bayer RAW")
+ax.set_xlabel("x")
+ax.set_ylabel("y")
+plt.show()
+```
+
+ここからデモザイクによって各位置の3成分
+
+$$
+(R,G,B)
+$$
+
+を構成する。
+
+**デモザイクは、観測されなかった成分を推定してRGB画像を再構成する操作**である。
+
+## Bilinear：異常値は広がるが、新しい極値は作らない
+
+まず模式図で、1点の異常がどのように周囲へ広がるかを見る。
+
+```{python}
+#| label: fig-bilinear-overview
+#| fig-cap: "Bilinear補間の模式図。同じRサイト1点の異常は周囲へ滑らかに広がるが、正規化された正の重みだけを使うため、新しい極値は作らない。"
+#| fig-width: 10.5
+#| fig-height: 3.7
+
+draw_bilinear_overview()
+plt.show()
+```
+
+単純なbilinear補間では、欠損値を
+
+$$
+\hat{x}=\sum_i w_i x_i
+$$
+
+で補い、
+
+$$
+w_i \ge 0,\qquad \sum_i w_i=1
+$$
+
+なら、これは近傍サンプルの凸結合になる。したがって
+
+$$
+\min_i x_i \le \hat{x} \le \max_i x_i
+$$
+
+が必ず成り立つ。
+
+入力がすべて
+
+$$
+0 \le x_i \le 1
+$$
+
+なら、bilinear補間だけで新たに負値や1を超える値を作ることはない。
+
+```{python}
+#| label: fig-bilinear-hotpixel
+#| fig-cap: "Bilinear demosaic後。異常値は周辺へ伝播するが、入力範囲を超える新しい値は生成されない。"
+#| fig-width: 5
+#| fig-height: 5
+
+rgb_bilinear = bilinear_rggb(raw)
+
+fig, ax = plt.subplots(figsize=(5, 5))
+ax.imshow(np.clip(rgb_bilinear, 0, 1), interpolation="nearest")
+ax.set_title("Bilinear")
+ax.set_xlabel("x")
+ax.set_ylabel("y")
+plt.show()
+```
+
+単一サンプルの影響は、欠損成分の補間に使われることで周辺へ広がる。
+
+ただし、ここでは **拡散と増幅は別物** である。
+
+## MHC：負係数を含む線形再構成
+
+次にMalvar–He–Cutler（MHC）法を考える [@malvar2004; @getreuer2011]。
+
+MHCは2004年に提案された、Bayer CFA向けの**固定線形demosaic**である。Bilinear補間を土台にしながら、5×5近傍から得たLaplacian型のクロスチャネル補正を加える。計算は局所的な線形フィルタで完結し、Bilinearよりエッジ付近の色ずれを抑えながら、比較的単純な構造を保つ。
+
+古典的なdemosaic法の中では、MHCは「単純なBilinear」と「入力内容に応じて処理を切り替える適応的手法」の中間に位置する。現在のRAW現像全般を代表する唯一の方式という意味ではなく、**高品質な固定線形法の代表例**として扱いやすい。IPOLでも、単純な5×5線形フィルタで良好な結果を得る方法として整理されている [@getreuer2011]。
+
+本稿ではBilinearとMHCの組を意図的に採用する。Bilinearは非負の正規化重みによる凸補間、MHCは負係数を含む固定線形再構成である。この2つを並べると、**「線形であること」と「入力範囲を保存すること」は別の性質**だと切り分けやすい。
+
+AHD、Hamilton–Adams、VNGのような方向選択・エッジ適応型のdemosaicを加えると、次には**入力に応じて演算子そのものが変わる**という別の論点が入る。これは重要だが、まず固定演算子の挙動を追う本稿では次段の比較対象とする。
+
+同じ1点異常を入れても、MHCでは符号付きの補正係数が使われるため、広がり方が変わる。
+
+```{python}
+#| label: fig-mhc-overview
+#| fig-cap: "MHC補間の模式図。方向性を持つ補正フィルタは負の係数を含み、入力にはなかったovershoot / undershootを作り得る。"
+#| fig-width: 10.5
+#| fig-height: 3.8
+
+draw_mhc_overview()
+plt.show()
+```
+
+MHCも線形フィルタであり、勾配補正を含むためカーネルに負係数を持つ。この符号付き重みが範囲外値を生成し得る。
+
+負係数を含む線形演算では、
+
+$$
+0 \le x_i \le 1
+$$
+
+であっても
+
+$$
+\hat{x}<0,\qquad \hat{x}>1
+$$
+
+が可能になる。
+
+**線形であることと、入力範囲を保存することは別の性質である。**
+
+```{python}
+#| label: tbl-mhc-theoretical-range
+#| tbl-cap: "MHC各カーネルが、独立な入力 x_i ∈ [0,1] に対して理論上取り得る出力範囲。"
+
+rows = []
+for name, kernel in MHC_KERNELS.items():
+    lo, hi = kernel_range(kernel)
+    rows.append({"kernel": name, "minimum": lo, "maximum": hi})
+
+pd.DataFrame(rows)
+```
+
+```{python}
+#| label: fig-mhc-hotpixel
+#| fig-cap: "MHC後。表示用画像は0–1へクリップしているが、内部値には負のundershootが生じる。"
+#| fig-width: 5
+#| fig-height: 5
+
+rgb_mhc = mhc_rggb(raw)
+
+fig, ax = plt.subplots(figsize=(5, 5))
+ax.imshow(np.clip(rgb_mhc, 0, 1), interpolation="nearest")
+ax.set_title("Malvar–He–Cutler")
+ax.set_xlabel("x")
+ax.set_ylabel("y")
+plt.show()
+```
+
+## 1点の異常は、数値的にはどう変わったか
+
+```{python}
+#| label: tbl-hotpixel-result
+#| tbl-cap: "単一Rホットピクセルに対するbilinearとMHCの比較"
+
+summary = pd.DataFrame([
+    {"method": "Bilinear", **summarize_rgb(rgb_bilinear)},
+    {"method": "MHC", **summarize_rgb(rgb_mhc)},
+])
+
+summary
+```
+
+bilinearは異常サンプルを周辺へ広げるものの、出力は0–1に留まる。
+
+一方MHCでは、単一の正の外れ値から周囲に負値が生じる。
+
+この負値はデモザイク計算によって生成された値であり、センサー値とは区別される。
+
+$$
+\text{sensor sample}
+\rightarrow
+\text{reconstruction}
+\rightarrow
+\text{new extrema}
+$$
+
+という順序で生成される。
+
+## 「異常1点」の三つの段階
+
+ホットピクセルについて、少なくとも三つを区別したい。
+
+1. **RAW段階の異常値**  
+   センサー上で実際に記録された外れ値。
+
+2. **補間による空間的な伝播**  
+   1サンプルが複数の再構成画素へ利用されることで影響範囲が広がる。
+
+3. **非凸な再構成によるovershoot / undershoot**  
+   入力には存在しなかった極値が演算によって生じる。
+
+この区別をしないと、「画像に赤い斑点が見える」という観察だけから、異常の発生源を逆算することは難しい。
+
+## ホットピクセルだけの特殊な話なのか
+
+次に、入力そのものには範囲外値がない状態で、通常の鋭い明暗境界を与える。
+
+```{python}
+#| label: tbl-step-boundary
+#| tbl-cap: "0–1内の明暗境界に対するdemosaic後の範囲逸脱。"
+
+rows = []
+for scene_name, rgb in [
+    ("neutral vertical step", neutral_step()),
+    ("neutral diagonal step", diagonal_step()),
+]:
+    cfa = mosaic_rggb(rgb)
+
+    for condition, source in [
+        ("clean", cfa),
+        ("shot noise", add_shot_noise(cfa)),
+    ]:
+        for method_name, method in [
+            ("Bilinear", bilinear_rggb),
+            ("MHC", mhc_rggb),
+        ]:
+            out = method(source)
+            s = summarize_rgb(out)
+            rows.append({
+                "scene": scene_name,
+                "condition": condition,
+                "method": method_name,
+                **s,
+            })
+
+pd.DataFrame(rows)
+```
+
+入力RAWを0–1に制限していても、非凸な再構成では境界近傍で新しい極値を作り得る。
+
+shot noiseの局所的な揺らぎは、負係数を含む再構成を通ることでovershoot / undershootの引き金になり得る。
+
+## R / Gr / Gb / Bで、1点異常の広がり方は同じか
+
+RGGB配列には、赤・青に加えて2つの緑位相がある。
+
+- **Gr**: 赤と同じ行にあるG
+- **Gb**: 青と同じ行にあるG
+
+同じ値1のホットサンプルを、R / Gr / Gb / B の各サイトに1つずつ置いて比較する。
+
+```{python}
+#| label: tbl-cfa-phase-hotpixel
+#| tbl-cap: "CFA位相ごとの単一ホットサンプル伝播。入力値はすべて1、背景は0。"
+
+phase_rows = []
+phase_results = {}
+
+for site in ["R", "Gr", "Gb", "B"]:
+    raw_site, xy_site = single_hot_pixel(size=21, channel=site)
+    for method_name, method in [
+        ("Bilinear", bilinear_rggb),
+        ("MHC", mhc_rggb),
+    ]:
+        out = method(raw_site)
+        phase_results[(site, method_name)] = out
+        phase_rows.append({
+            "site": site,
+            "method": method_name,
+            **stage_metrics(out),
+        })
+
+phase_df = pd.DataFrame(phase_rows)
+phase_df
+```
+
+```{python}
+#| label: fig-cfa-phase-hotpixel
+#| fig-cap: "R / Gr / Gb / B各サイトに置いた単一ホットサンプルの再構成結果。表示のみ0–1へクリップしている。"
+#| fig-width: 10
+#| fig-height: 5
+
+fig, axes = plt.subplots(2, 4, figsize=(10, 5))
+
+for col, site in enumerate(["R", "Gr", "Gb", "B"]):
+    for row, method_name in enumerate(["Bilinear", "MHC"]):
+        img = phase_results[(site, method_name)]
+        axes[row, col].imshow(np.clip(img, 0, 1), interpolation="nearest")
+        axes[row, col].set_title(site + " / " + method_name)
+        axes[row, col].set_xticks([])
+        axes[row, col].set_yticks([])
+
+plt.tight_layout()
+plt.show()
+```
+
+この比較では、単に「何色のホットピクセルか」だけでなく、**CFA格子上の位相**が再構成後の空間パターンに影響する。
+
+特にGrとGbはどちらも緑だが、MHCの方向別カーネルに対して90度回転した関係にある。
+
+## デモザイク前に欠陥補正すると何が変わるか
+
+実際の処理では、既知の欠陥画素をデモザイク前に補正する場合がある。
+
+ここでは18%の一様な中性面を作り、その1サンプルだけを1.0へ置き換える。補正は極めて単純な例として、同じCFA位相の近傍中央値で置換する。
+
+```{python}
+#| label: tbl-defect-correction-order
+#| tbl-cap: "単一欠陥サンプルをデモザイク前に補正した場合の誤差。補正法は説明用の同位相中央値。"
+
+clean_rgb = flat_field(height=21, width=21, level=0.18)
+clean_cfa = mosaic_rggb(clean_rgb)
+
+_, defect_xy = single_hot_pixel(size=21, channel="R")
+defective_cfa = clean_cfa.copy()
+defective_cfa[defect_xy] = 1.0
+
+corrected_cfa = replace_hot_pixel_same_color_median(
+    defective_cfa,
+    defect_xy,
+    radius=2,
+)
+
+rows = []
+for method_name, method in [
+    ("Bilinear", bilinear_rggb),
+    ("MHC", mhc_rggb),
+]:
+    reference = method(clean_cfa)
+
+    for condition, cfa in [
+        ("defect present", defective_cfa),
+        ("pre-demosaic corrected", corrected_cfa),
+    ]:
+        out = method(cfa)
+        rows.append({
+            "method": method_name,
+            "condition": condition,
+            **stage_metrics(out, reference=reference),
+        })
+
+pd.DataFrame(rows)
+```
+
+次に、同じ処理を局所像として見る。上段はデモザイク前のCFA、下段はMHC後の基準画像との差である。
+
+```{python}
+#| label: fig-defect-correction-visual
+#| fig-cap: "デモザイク前の欠陥補正。上段はCFAの局所領域、下段はMHC後の基準画像に対するRGB誤差の最大成分。1サンプルの補正が、再構成後の空間的な広がりを抑える。"
+#| fig-width: 9
+#| fig-height: 5
+
+reference_mhc = mhc_rggb(clean_cfa)
+defective_mhc = mhc_rggb(defective_cfa)
+corrected_mhc = mhc_rggb(corrected_cfa)
+
+cy, cx = defect_xy
+r = 4
+ys = slice(cy - r, cy + r + 1)
+xs = slice(cx - r, cx + r + 1)
+
+err_defect = np.max(np.abs(defective_mhc - reference_mhc), axis=2)
+err_corrected = np.max(np.abs(corrected_mhc - reference_mhc), axis=2)
+err_vmax = max(float(err_defect[ys, xs].max()), 1e-12)
+
+fig, axes = plt.subplots(2, 2, figsize=(9, 5))
+
+for ax, data, title in [
+    (axes[0, 0], defective_cfa[ys, xs], "補正前 CFA"),
+    (axes[0, 1], corrected_cfa[ys, xs], "補正後 CFA"),
+]:
+    ax.imshow(data, cmap="gray", vmin=0.18, vmax=1.0, interpolation="nearest")
+    ax.scatter([r], [r], s=70, facecolors="none", edgecolors=ARTICLE_COLORS["hot"])
+    ax.set_title(title)
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+for ax, data, title in [
+    (axes[1, 0], err_defect[ys, xs], "MHC後の誤差：補正なし"),
+    (axes[1, 1], err_corrected[ys, xs], "MHC後の誤差：事前補正"),
+]:
+    im = ax.imshow(data, cmap="magma", vmin=0.0, vmax=err_vmax, interpolation="nearest")
+    ax.set_title(title)
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+fig.colorbar(im, ax=axes[1, :], fraction=0.025, pad=0.03, label="max |RGB error|")
+plt.show()
+```
+
+ここでは処理順序の効果を見るため、同色近傍中央値による簡単な補正器を採用する。
+
+$$
+\text{defect correction}
+\rightarrow
+\text{demosaic}
+$$
+
+なら1サンプルの異常を再構成前に抑えられる。一方、デモザイク後にはすでに複数画素・複数チャンネルへ影響が広がっている。
+
+## WBゲインは、すでに生じた異常をどう増幅するか
+
+ホワイトバランスを
+
+$$
+W=
+\begin{pmatrix}
+g_R&0&0\\
+0&g_G&0\\
+0&0&g_B
+\end{pmatrix}
+$$
+
+とする。
+
+まずRサイトの単一ホットサンプルをMHCで再構成し、赤ゲインだけを1から4まで変える。
+
+```{python}
+#| label: fig-wb-gain-sweep
+#| fig-cap: "単一RホットサンプルをMHCで再構成した後、RのWBゲインだけを変えたときの最大値。clip前を測定。"
+#| fig-width: 7
+#| fig-height: 4
+
+raw_r, _ = single_hot_pixel(size=21, channel="R")
+mhc_r = mhc_rggb(raw_r)
+
+gain_rows = []
+for g_r in np.linspace(1.0, 4.0, 31):
+    wb = apply_white_balance(mhc_r, (g_r, 1.0, 1.0))
+    metrics = stage_metrics(wb)
+    gain_rows.append({
+        "R_gain": g_r,
+        **metrics,
+    })
+
+gain_df = pd.DataFrame(gain_rows)
+
+fig, ax = plt.subplots(figsize=(7, 4))
+ax.plot(gain_df["R_gain"], gain_df["maximum"], marker="o", markersize=3)
+ax.axhline(1.0, linewidth=1)
+ax.set_xlabel("R white-balance gain")
+ax.set_ylabel("maximum component before clip")
+ax.set_title("WB gain amplifies the reconstructed excursion")
+plt.show()
+```
+
+WBは画素間の空間構造を保ったまま、デモザイクですでに作られた色差や極値をチャンネル別に拡大する。
+
+つまり、最終的な赤い異常点の強さは
+
+$$
+\text{RAW defect}
+\neq
+\text{visible red intensity}
+$$
+
+である。
+
+## CCMでRGB立方体の外へさらに押し出されるか
+
+次にColor Correction Matrix（CCM）を
+
+$$
+x'=Mx
+$$
+
+として適用する。
+
+カメラのR / G / Bは、そのカメラ固有の分光感度から得られる **camera-native RGB** である。したがって、同じ数値の$(R,G,B)$でも、そのままsRGBやDisplay P3のRGB座標を意味するわけではない。RAW現像では、ホワイトバランス後のcamera-native RGBを、CIE XYZや作業用の線形RGBなど、後段で扱いやすい色表現へ結び付けるために行列変換が使われる。
+
+DNGの色処理モデルも、撮影光に応じたカメラ固有の行列群を持ち、white-balanced camera colorsからPCS側へ写すForwardMatrixなどを定義している [@adobeDNG2023]。実際のカメラプロファイルでは、複数光源間の補間、非線形なHue/Sat補正、Look Tableなどが加わることもある。したがって、ここでいうCCMは**カラーマネジメント全体ではなく、その前段にある線形な色空間変換の最小モデル**である。
+
+処理の位置関係を単純化すると、
+
+$
+\begin{aligned}
+\text{camera-native RGB}
+&\xrightarrow{\text{WB}}
+\text{white-balanced camera RGB}
+\\[4pt]
+&\xrightarrow{\text{CCM / profile}}
+\text{XYZ or working RGB}
+\\[4pt]
+&\xrightarrow{\text{render / gamut / transfer}}
+\text{display RGB}
+\end{aligned}
+$
+
+と見られる。
+
+本稿では、**中性軸を保存しつつ負係数を含む説明用CCM**を採用する。行和を1にしているため、
+
+$$
+M(t,t,t)^\mathsf{T}=(t,t,t)^\mathsf{T}
+$$
+
+色差方向ではRGB立方体外への変位を生じ得る。
+
+```{python}
+#| label: tbl-pipeline-stages
+#| tbl-cap: "単一RホットサンプルをMHC → WB → 説明用CCM → clipへ通した各段階の範囲。WB=(2.0,1.0,1.7)。"
+
+wb_gains = (2.0, 1.0, 1.7)
+
+stage_demosaic = mhc_r
+stage_wb = apply_white_balance(stage_demosaic, wb_gains)
+stage_ccm = apply_ccm(stage_wb, ILLUSTRATIVE_NEUTRAL_PRESERVING_CCM)
+stage_clip = clip_rgb(stage_ccm)
+
+stage_rows = []
+for name, img in [
+    ("demosaic", stage_demosaic),
+    ("white balance", stage_wb),
+    ("CCM", stage_ccm),
+    ("clip", stage_clip),
+]:
+    stage_rows.append({
+        "stage": name,
+        **stage_metrics(img),
+    })
+
+pd.DataFrame(stage_rows)
+```
+
+```{python}
+#| label: fig-pipeline-stages
+#| fig-cap: "同じ単一ホットサンプルを処理段階ごとに追跡。表示時だけ0–1に制限しているため、数値表ではclip前の範囲逸脱が確認できる。"
+#| fig-width: 10
+#| fig-height: 3
+
+fig, axes = plt.subplots(1, 4, figsize=(10, 3))
+
+for ax, (name, img) in zip(
+    axes,
+    [
+        ("Demosaic", stage_demosaic),
+        ("WB", stage_wb),
+        ("CCM", stage_ccm),
+        ("Clip", stage_clip),
+    ],
+):
+    ax.imshow(np.clip(img, 0, 1), interpolation="nearest")
+    ax.set_title(name)
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+plt.tight_layout()
+plt.show()
+```
+
+ここで初めて、「1つのセンサー異常」が最終表示RGBに至るまでの連鎖を同じデータで追える。
+
+$$
+\text{CFA}
+\rightarrow
+\text{Demosaic}
+\rightarrow
+\text{WB}
+\rightarrow
+\text{CCM}
+\rightarrow
+\text{Clip}
+$$
+
+## clipは何を隠すのか
+
+clip後だけを見ると、clip前にどれだけ大きなovershoot / undershootがあったかは分からない。
+
+そこでclipが変更した量を直接測る。
+
+```{python}
+#| label: tbl-clip-destruction
+#| tbl-cap: "CCM後のRGBを0–1へclipしたとき、何画素・何成分が変更されたか。"
+
+pd.DataFrame([
+    clip_metrics(stage_ccm)
+])
+```
+
+clipそのものは各RGB成分へ独立に適用される。1成分だけ取り出すと、写像は次の折れ線になる。
+
+```{python}
+#| label: fig-clip-transfer
+#| fig-cap: "0–1 clipの1成分あたりの写像。灰色の点は今回のCCM後RGBに実際に現れた成分値。0未満は0へ、1を超えた値は1へ写るため、異なるpreclip値が同じ出力値を共有する。"
+#| fig-width: 7
+#| fig-height: 4.5
+
+component_values = stage_ccm.reshape(-1)
+component_values = component_values[np.isfinite(component_values)]
+
+x_min = min(-0.5, float(component_values.min()) - 0.1)
+x_max = max(1.5, float(component_values.max()) + 0.1)
+x = np.linspace(x_min, x_max, 600)
+
+fig, ax = plt.subplots(figsize=(7, 4.5))
+ax.plot(x, np.clip(x, 0, 1), linewidth=2.0, label="clip(x, 0, 1)")
+ax.plot(x, x, linewidth=0.8, linestyle="--", alpha=0.45, label="y = x")
+ax.scatter(
+    component_values,
+    np.clip(component_values, 0, 1),
+    s=12,
+    alpha=0.35,
+    label="今回のCCM後成分",
+)
+ax.axvline(0.0, linewidth=0.8, alpha=0.5)
+ax.axvline(1.0, linewidth=0.8, alpha=0.5)
+ax.set_xlabel("preclip component")
+ax.set_ylabel("postclip component")
+ax.set_ylim(-0.08, 1.08)
+ax.set_title("Clip maps many internal values to the same boundary")
+ax.legend()
+plt.show()
+```
+
+この意味で、最終画像上の「飽和した赤点」だけを観察しても、その直前のRGBベクトルが
+
+$$
+(1.02,0.01,0.00)
+$$
+
+だったのか、
+
+$$
+(2.8,-0.4,-0.2)
+$$
+
+だったのかは区別できない。
+
+**clipは、異なる内部状態を同じ境界へ写す。**
+
+## 鋭い境界を回転させるとどうなるか
+
+ホットピクセルは極端な入力だが、負係数による範囲逸脱は通常の高コントラスト境界でも起こり得る。
+
+中性のstep edgeを0–175度まで回転し、方向ごとにデモザイク後の範囲逸脱を数える。
+
+```{python}
+#| label: fig-edge-angle-sweep
+#| fig-cap: "中性step edgeの角度と、demosaic後に0–1を外れた画素数。"
+#| fig-width: 8
+#| fig-height: 4
+
+angle_rows = []
+
+for angle in np.arange(0.0, 180.0, 5.0):
+    rgb_edge = step_edge_angle(
+        height=128,
+        width=128,
+        angle_deg=float(angle),
+        dark=0.05,
+        bright=0.98,
+    )
+    cfa_edge = mosaic_rggb(rgb_edge)
+
+    for method_name, method in [
+        ("Bilinear", bilinear_rggb),
+        ("MHC", mhc_rggb),
+    ]:
+        out = method(cfa_edge)
+        metrics = stage_metrics(out)
+        angle_rows.append({
+            "angle_deg": angle,
+            "method": method_name,
+            **metrics,
+        })
+
+angle_df = pd.DataFrame(angle_rows)
+
+fig, ax = plt.subplots(figsize=(8, 4))
+for method_name in ["Bilinear", "MHC"]:
+    sub = angle_df[angle_df["method"] == method_name]
+    ax.plot(
+        sub["angle_deg"],
+        sub["out_of_range_pixels"],
+        marker="o",
+        markersize=3,
+        label=method_name,
+    )
+
+ax.set_xlabel("edge normal angle [deg]")
+ax.set_ylabel("out-of-range pixels")
+ax.set_title("Range violation versus edge orientation")
+ax.legend()
+plt.show()
+```
+
+角度の意味を画像として確認するため、0° / 45° / 90°の入力とMHC後の範囲逸脱量を並べる。
+
+```{python}
+#| label: fig-edge-angle-examples
+#| fig-cap: "代表的な3方向のstep edge。上段が入力、下段がMHC後の0–1範囲からの逸脱量。境界方向とCFA格子の関係によって、逸脱の空間パターンが変わる。"
+#| fig-width: 9
+#| fig-height: 5
+
+edge_examples = []
+for angle in [0.0, 45.0, 90.0]:
+    rgb_edge = step_edge_angle(
+        height=64,
+        width=64,
+        angle_deg=angle,
+        dark=0.05,
+        bright=0.98,
+    )
+    out = mhc_rggb(mosaic_rggb(rgb_edge))
+    violation = np.maximum(np.maximum(-out, 0.0), np.maximum(out - 1.0, 0.0))
+    violation = np.max(violation, axis=2)
+    edge_examples.append((angle, rgb_edge[..., 0], violation))
+
+vmax = max(float(v.max()) for _, _, v in edge_examples)
+fig, axes = plt.subplots(2, 3, figsize=(9, 5))
+
+for col, (angle, input_edge, violation) in enumerate(edge_examples):
+    axes[0, col].imshow(input_edge, cmap="gray", vmin=0, vmax=1, interpolation="nearest")
+    axes[0, col].set_title(f"{angle:.0f}° input")
+    axes[1, col].imshow(
+        violation,
+        cmap="magma",
+        vmin=0.0,
+        vmax=max(vmax, 1e-12),
+        interpolation="nearest",
+    )
+    axes[1, col].set_title(f"{angle:.0f}° range excursion")
+
+    for ax in axes[:, col]:
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+plt.tight_layout()
+plt.show()
+```
+
+この実験では、通常の明暗エッジでも範囲逸脱が生じ得ることと、CFA格子・再構成カーネル・エッジ方向の組み合わせを同時に見る。
+
+## Shot noiseとread noiseは、デモザイク後にどう相関するか
+
+次は18%の一様な面にノイズを加え、入力を単一異常から確率的な揺らぎへ広げる。
+
+比較するのは次の3条件である。
+
+1. shot noiseのみ
+2. read noiseのみ
+3. Poisson + Gaussian
+
+RAW上では各サンプルが1色だけを持つが、デモザイク後には補間によって複数チャンネルへ共有される。その結果、RGBノイズの共分散も変化する。
+
+```{python}
+#| label: tbl-noise-covariance
+#| tbl-cap: "18%中性面に加えたノイズのdemosaic後統計。中央領域のみを使用。Rec.709係数を診断方向として使用。"
+
+flat_rgb = flat_field(height=256, width=256, level=0.18)
+flat_cfa = mosaic_rggb(flat_rgb)
+
+noise_cases = {
+    "shot only": add_shot_noise(
+        flat_cfa,
+        full_well_e=4096.0,
+        seed=100,
+    ),
+    "read only": add_read_noise(
+        flat_cfa,
+        sigma=3.0 / 4096.0,
+        seed=101,
+        clip=False,
+    ),
+    "shot + read": add_poisson_gaussian_noise(
+        flat_cfa,
+        full_well_e=4096.0,
+        read_noise_e=3.0,
+        seed=102,
+        clip=False,
+    ),
+}
+
+noise_rows = []
+
+for method_name, method in [
+    ("Bilinear", bilinear_rggb),
+    ("MHC", mhc_rggb),
+]:
+    clean = method(flat_cfa)
+
+    for noise_name, noisy_cfa in noise_cases.items():
+        noisy = method(noisy_cfa)
+        residual = (noisy - clean)[8:-8, 8:-8, :]
+        stats = rgb_noise_statistics(residual)
+
+        noise_rows.append({
+            "method": method_name,
+            "noise": noise_name,
+            **stats,
+        })
+
+noise_df = pd.DataFrame(noise_rows)
+
+noise_df[
+    [
+        "method",
+        "noise",
+        "std_R",
+        "std_G",
+        "std_B",
+        "corr_RG",
+        "corr_GB",
+        "corr_RB",
+        "std_luma709",
+        "std_R_minus_G",
+        "std_B_minus_G",
+    ]
+]
+```
+
+相関の形を直接見るため、残差を単純なチャンネル差 $(R-G,\ B-G)$ に置く。ここでの2軸は知覚色空間ではなく、RGBチャンネル間の結びつきを見るための診断座標である。
+
+```{python}
+#| label: fig-noise-correlation-scatter
+#| fig-cap: "Demosaic後ノイズ残差の (R−G, B−G) 散布図。列がノイズ源、行がdemosaic法。点群の広がりと傾きが、再構成後のチャンネル間相関を可視化する。"
+#| fig-width: 10
+#| fig-height: 6.2
+
+noise_scatter = {}
+
+for method_name, method in [
+    ("Bilinear", bilinear_rggb),
+    ("MHC", mhc_rggb),
+]:
+    clean = method(flat_cfa)
+
+    for noise_name, noisy_cfa in noise_cases.items():
+        noisy = method(noisy_cfa)
+        residual = (noisy - clean)[8:-8, 8:-8, :].reshape(-1, 3)
+        residual = residual[::12]
+
+        rg = residual[:, 0] - residual[:, 1]
+        bg = residual[:, 2] - residual[:, 1]
+        noise_scatter[(method_name, noise_name)] = (rg, bg)
+
+all_diff = np.concatenate([
+    np.concatenate([rg, bg])
+    for rg, bg in noise_scatter.values()
+])
+limit = float(np.quantile(np.abs(all_diff), 0.995))
+limit = max(limit, 1e-6)
+
+noise_order = ["shot only", "read only", "shot + read"]
+method_order = ["Bilinear", "MHC"]
+
+fig, axes = plt.subplots(2, 3, figsize=(10, 6.2), sharex=True, sharey=True)
+
+for row, method_name in enumerate(method_order):
+    for col, noise_name in enumerate(noise_order):
+        ax = axes[row, col]
+        rg, bg = noise_scatter[(method_name, noise_name)]
+        ax.scatter(rg, bg, s=3, alpha=0.16)
+        ax.axhline(0, linewidth=0.6, alpha=0.4)
+        ax.axvline(0, linewidth=0.6, alpha=0.4)
+        ax.set_xlim(-limit, limit)
+        ax.set_ylim(-limit, limit)
+
+        if row == 0:
+            ax.set_title(noise_name)
+        if col == 0:
+            ax.set_ylabel(f"{method_name}\\nΔ(B−G)")
+        if row == 1:
+            ax.set_xlabel("Δ(R−G)")
+
+plt.tight_layout()
+plt.show()
+```
+
+ここで見ているのは、ノイズの「発生源」と「最終的な見え方」を分けるための最小例である。
+
+同じshot noiseでも、デモザイク法が変われば
+
+- RGB各チャンネルの標準偏差
+- チャンネル間相関
+- 共通方向の揺らぎ
+- 色差方向の揺らぎ
+
+が変わる。
+
+したがって、最終画像上の「輝度ノイズ」「カラーノイズ」は、センサー上の物理的ノイズ源とdemosaicによる再配分の両方を反映する。
+
+## ホットピクセル強度を上げると、いつRGB境界に触れるか
+
+ここまでは異常値を1に固定していた。次は18%の一様面を背景とし、Rサイト1点だけを0.18から1.0まで連続的に上げる。
+
+このとき、センサー上の値は最後まで0–1内にある。それでも後段の再構成・WB・CCMによって、最終clip前RGBは早い段階で立方体外へ出る可能性がある。
+
+```{python}
+#| label: fig-hot-strength-sweep
+#| fig-cap: "18%中性面上のRサイト1点を0.18→1.0へ上げたときの、CCM後clip前最大成分。"
+#| fig-width: 8
+#| fig-height: 4
+
+base_rgb = flat_field(height=31, width=31, level=0.18)
+base_cfa = mosaic_rggb(base_rgb)
+_, hot_xy_sweep = single_hot_pixel(size=31, channel="R")
+
+strength_rows = []
+
+for hot_value in np.linspace(0.18, 1.0, 42):
+    cfa = base_cfa.copy()
+    cfa[hot_xy_sweep] = hot_value
+
+    for method_name, method in [
+        ("Bilinear", bilinear_rggb),
+        ("MHC", mhc_rggb),
+    ]:
+        dem = method(cfa)
+        wb = apply_white_balance(dem, wb_gains)
+        ccm = apply_ccm(wb, ILLUSTRATIVE_NEUTRAL_PRESERVING_CCM)
+        metrics = stage_metrics(ccm)
+
+        strength_rows.append({
+            "hot_value": hot_value,
+            "method": method_name,
+            **metrics,
+        })
+
+strength_df = pd.DataFrame(strength_rows)
+
+fig, ax = plt.subplots(figsize=(8, 4))
+for method_name in ["Bilinear", "MHC"]:
+    sub = strength_df[strength_df["method"] == method_name]
+    ax.plot(
+        sub["hot_value"],
+        sub["maximum"],
+        marker="o",
+        markersize=3,
+        label=method_name,
+    )
+
+ax.axhline(1.0, linewidth=1)
+ax.set_xlabel("hot R sample value on 18% background")
+ax.set_ylabel("maximum component after WB + CCM, before clip")
+ax.set_title("Boundary contact can occur before the RAW sample saturates")
+ax.legend()
+plt.show()
+```
+
+**RAWの1点が入力範囲内にある段階で、色変換後のRGBが境界へ接触する**ことを直接確認できる。
+
+この違いは、センサーの飽和と出力RGBのheadroomを分けて考える上で重要である。
+
+## 2つのホットピクセルは単純に足し算できるか
+
+BilinearもMHCも、ここで実装した形では固定された線形作用素である。
+
+したがってclip前なら、
+
+$$
+D(x_1+x_2)=D(x_1)+D(x_2)
+$$
+
+が成り立つはずである。
+
+RサイトとBサイトに1点ずつ異常を置き、数値的に確認する。
+
+```{python}
+#| label: tbl-superposition
+#| tbl-cap: "2つの単一異常に対する重ね合わせ誤差。clip前の線形段階とclip後を比較。"
+
+raw_r2, _ = single_hot_pixel(size=21, channel="R")
+raw_b2, _ = single_hot_pixel(size=21, channel="B")
+raw_pair = raw_r2 + raw_b2
+
+super_rows = []
+
+for method_name, method in [
+    ("Bilinear", bilinear_rggb),
+    ("MHC", mhc_rggb),
+]:
+    a = method(raw_r2)
+    b = method(raw_b2)
+    pair = method(raw_pair)
+
+    demosaic_error = np.max(np.abs(pair - (a + b)))
+
+    ta = apply_ccm(
+        apply_white_balance(a, wb_gains),
+        ILLUSTRATIVE_NEUTRAL_PRESERVING_CCM,
+    )
+    tb = apply_ccm(
+        apply_white_balance(b, wb_gains),
+        ILLUSTRATIVE_NEUTRAL_PRESERVING_CCM,
+    )
+    tpair = apply_ccm(
+        apply_white_balance(pair, wb_gains),
+        ILLUSTRATIVE_NEUTRAL_PRESERVING_CCM,
+    )
+
+    linear_pipeline_error = np.max(np.abs(tpair - (ta + tb)))
+
+    clipped_pair = clip_rgb(tpair)
+    clipped_sum = clip_rgb(ta) + clip_rgb(tb)
+    postclip_error = np.max(np.abs(clipped_pair - clipped_sum))
+
+    super_rows.append({
+        "method": method_name,
+        "demosaic_max_error": demosaic_error,
+        "WB_CCM_max_error": linear_pipeline_error,
+        "after_clip_max_error": postclip_error,
+    })
+
+pd.DataFrame(super_rows)
+```
+
+MHCについて、個別入力・同時入力・clip後の重ね合わせ誤差を画像で見る。
+
+```{python}
+#| label: fig-superposition-visual
+#| fig-cap: "MHC → WB → CCMでの2点異常。左3枚は表示用に0–1へ制限したRGB像。右端はclip後の C(T(R+B)) と C(T(R))+C(T(B)) の差の最大成分で、clipが重ね合わせを壊す位置を示す。"
+#| fig-width: 10
+#| fig-height: 3.2
+
+a_mhc = mhc_rggb(raw_r2)
+b_mhc = mhc_rggb(raw_b2)
+pair_mhc = mhc_rggb(raw_pair)
+
+ta_mhc = apply_ccm(
+    apply_white_balance(a_mhc, wb_gains),
+    ILLUSTRATIVE_NEUTRAL_PRESERVING_CCM,
+)
+tb_mhc = apply_ccm(
+    apply_white_balance(b_mhc, wb_gains),
+    ILLUSTRATIVE_NEUTRAL_PRESERVING_CCM,
+)
+tpair_mhc = apply_ccm(
+    apply_white_balance(pair_mhc, wb_gains),
+    ILLUSTRATIVE_NEUTRAL_PRESERVING_CCM,
+)
+
+clip_mismatch = np.max(
+    np.abs(
+        clip_rgb(tpair_mhc)
+        - (clip_rgb(ta_mhc) + clip_rgb(tb_mhc))
+    ),
+    axis=2,
+)
+
+fig, axes = plt.subplots(1, 4, figsize=(10, 3.2))
+
+for ax, img, title in [
+    (axes[0], ta_mhc, "T(R)"),
+    (axes[1], tb_mhc, "T(B)"),
+    (axes[2], tpair_mhc, "T(R+B)"),
+]:
+    ax.imshow(np.clip(img, 0, 1), interpolation="nearest")
+    ax.set_title(title)
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+im = axes[3].imshow(clip_mismatch, cmap="magma", interpolation="nearest")
+axes[3].set_title("clip後の差")
+axes[3].set_xticks([])
+axes[3].set_yticks([])
+fig.colorbar(im, ax=axes[3], fraction=0.046, pad=0.04)
+
+plt.tight_layout()
+plt.show()
+```
+
+この実験は、現在のパイプラインで**どこから重ね合わせが壊れるか**を明確にする。
+
+固定線形demosaic、WB、CCMまでは重ね合わせが保たれる。clipでは非線形性が入り、一般に
+
+$$
+C(x_1+x_2)\neq C(x_1)+C(x_2)
+$$
+
+となる。
+
+将来AHDのような適応的demosaicを追加すると、この非線形性がもっと前段へ移る。
+
+## RGB立方体の中で何が起きているか
+
+ここまで追ってきた局所RGB値を、$[0,1]^3$ の立方体を基準にして見る。
+
+この図では **cubeそのものを固定した座標基準** とする。細い灰色の辺が $[0,1]^3$、原点から伸びる赤・緑・青の3辺がR / G / B方向である。背景グリッドも同じ原点と0.5刻みを共有する。
+
+4枚とも表示範囲は $[-0.15,1.15]^3$ に固定する。表示枠を越えるベクトルは、cube中心からその方向へ伸ばした線と表示枠の交点に◇を置き、実際のRGB値をパネル内に記す。
+
+```{python}
+#| label: fig-rgb-cube-trajectory
+#| fig-cap: "単一Rホットサンプル周辺のRGB点群。各パネルは同じ [−0.15,1.15]^3 を表示し、灰色のワイヤーフレームが [0,1]^3。◇は表示範囲外へ伸びたRGBベクトルの方向を示し、実際の値をパネル内に記す。"
+#| fig-width: 9.5
+#| fig-height: 8.6
+
+RGB_AXIS_COLORS = {
+    "R": "#d62728",
+    "G": "#2ca02c",
+    "B": "#1f77b4",
+}
+
+VIEW_LOWER = -0.15
+VIEW_UPPER = 1.15
+
+
+def draw_rgb_reference(ax):
+    """Draw one coherent RGB geometry: grid, unit cube, and RGB directions."""
+    grid_color = "#c7cfd6"
+    grid_ticks = [0.0, 0.5, 1.0]
+
+    # Three coordinate planes through the common origin.
+    # z = 0 : R-G
+    for t in grid_ticks:
+        ax.plot([0, 1], [t, t], [0, 0],
+                color=grid_color, linewidth=0.55, alpha=0.72, zorder=0)
+        ax.plot([t, t], [0, 1], [0, 0],
+                color=grid_color, linewidth=0.55, alpha=0.72, zorder=0)
+
+    # y = 0 : R-B
+    for t in grid_ticks:
+        ax.plot([0, 1], [0, 0], [t, t],
+                color=grid_color, linewidth=0.55, alpha=0.72, zorder=0)
+        ax.plot([t, t], [0, 0], [0, 1],
+                color=grid_color, linewidth=0.55, alpha=0.72, zorder=0)
+
+    # x = 0 : G-B
+    for t in grid_ticks:
+        ax.plot([0, 0], [0, 1], [t, t],
+                color=grid_color, linewidth=0.55, alpha=0.72, zorder=0)
+        ax.plot([0, 0], [t, t], [0, 1],
+                color=grid_color, linewidth=0.55, alpha=0.72, zorder=0)
+
+    corners = np.array([
+        [0, 0, 0],
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+        [1, 1, 0],
+        [1, 0, 1],
+        [0, 1, 1],
+        [1, 1, 1],
+    ], dtype=float)
+
+    edges = [
+        (0, 1), (0, 2), (0, 3),
+        (1, 4), (1, 5),
+        (2, 4), (2, 6),
+        (3, 5), (3, 6),
+        (4, 7), (5, 7), (6, 7),
+    ]
+
+    direction_colors = {
+        (0, 1): RGB_AXIS_COLORS["R"],
+        (0, 2): RGB_AXIS_COLORS["G"],
+        (0, 3): RGB_AXIS_COLORS["B"],
+    }
+
+    for edge in edges:
+        i, j = edge
+        p = corners[[i, j]]
+        is_direction = edge in direction_colors
+        ax.plot(
+            p[:, 0],
+            p[:, 1],
+            p[:, 2],
+            color=direction_colors.get(edge, "#66717b"),
+            linewidth=1.25 if is_direction else 1.00,
+            alpha=1.0 if is_direction else 0.92,
+            zorder=3,
+        )
+
+
+def style_rgb_panel(ax):
+    ax.set_xlim(VIEW_LOWER, VIEW_UPPER)
+    ax.set_ylim(VIEW_LOWER, VIEW_UPPER)
+    ax.set_zlim(VIEW_LOWER, VIEW_UPPER)
+
+    ax.set_box_aspect((1, 1, 1), zoom=1.18)
+    ax.set_proj_type("ortho")
+    ax.view_init(elev=22, azim=-56)
+
+    # Matplotlib's own panes/grid are hidden; the reference geometry above
+    # supplies the complete coordinate frame.
+    ax.grid(False)
+    for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+        pane.set_facecolor((1, 1, 1, 0))
+        pane.set_edgecolor((1, 1, 1, 0))
+
+    ticks = [0.0, 0.5, 1.0]
+    ax.set_xticks(ticks)
+    ax.set_yticks(ticks)
+    ax.set_zticks(ticks)
+
+    ax.set_xlabel("R", labelpad=4)
+    ax.set_ylabel("G", labelpad=4)
+    ax.set_zlabel("B", labelpad=4)
+    ax.tick_params(labelsize=8, pad=0)
+
+
+def project_to_view_boundary(point):
+    """Project a far point radially from cube center onto the fixed view box."""
+    center = np.array([0.5, 0.5, 0.5], dtype=float)
+    direction = np.asarray(point, dtype=float) - center
+
+    candidates = []
+    for value in direction:
+        if value > 0:
+            candidates.append((VIEW_UPPER - 0.5) / value)
+        elif value < 0:
+            candidates.append((VIEW_LOWER - 0.5) / value)
+
+    positive = [t for t in candidates if t > 0]
+    if not positive:
+        return center.copy()
+
+    t = min(positive)
+    return center + t * direction
+
+
+cube_stages = [
+    ("Demosaic", stage_demosaic),
+    ("WB", stage_wb),
+    ("CCM", stage_ccm),
+    ("Clip", stage_clip),
+]
+
+fig = plt.figure(figsize=(9.5, 8.6))
+
+for i, (name, img) in enumerate(cube_stages, start=1):
+    ax = fig.add_subplot(
+        2, 2, i,
+        projection="3d",
+        computed_zorder=False,
+    )
+
+    pts = img.reshape(-1, 3)
+    pts = pts[
+        np.all(np.isfinite(pts), axis=1)
+        & np.any(np.abs(pts) > 1e-12, axis=1)
+    ]
+
+    colors = np.clip(pts, 0, 1)
+    cube_outside = np.any((pts < 0.0) | (pts > 1.0), axis=1)
+    view_outside = np.any(
+        (pts < VIEW_LOWER) | (pts > VIEW_UPPER),
+        axis=1,
+    )
+    view_inside = ~view_outside
+
+    style_rgb_panel(ax)
+    draw_rgb_reference(ax)
+
+    # Actual points that fit inside the common close-up view.
+    if np.any(view_inside):
+        ax.scatter(
+            pts[view_inside, 0],
+            pts[view_inside, 1],
+            pts[view_inside, 2],
+            c=colors[view_inside],
+            s=np.where(cube_outside[view_inside], 42, 32),
+            edgecolors=np.where(
+                cube_outside[view_inside, None],
+                "#202428",
+                "#525a62",
+            ).reshape(-1),
+            linewidths=0.65,
+            depthshade=False,
+            zorder=10,
+        )
+
+    # Far points: keep the close-up scale, indicate direction at the view boundary.
+    far_pts = pts[view_outside]
+    far_colors = colors[view_outside]
+
+    if len(far_pts):
+        proxies = np.array([project_to_view_boundary(p) for p in far_pts])
+
+        ax.scatter(
+            proxies[:, 0],
+            proxies[:, 1],
+            proxies[:, 2],
+            c=far_colors,
+            marker="D",
+            s=48,
+            edgecolors="#202428",
+            linewidths=0.9,
+            depthshade=False,
+            zorder=12,
+        )
+
+        # Report the farthest vector numerically; the diamond encodes direction.
+        excursion = np.max(
+            np.maximum(
+                np.maximum(far_pts - 1.0, 0.0),
+                np.maximum(-far_pts, 0.0),
+            ),
+            axis=1,
+        )
+        farthest = far_pts[int(np.argmax(excursion))]
+
+        ax.text2D(
+            0.03,
+            0.04,
+            "◇ 表示枠外  "
+            f"({farthest[0]:.2f}, {farthest[1]:.2f}, {farthest[2]:.2f})",
+            transform=ax.transAxes,
+            fontsize=8.3,
+            color=ARTICLE_COLORS["muted"],
+        )
+
+    ax.text2D(
+        0.03,
+        0.94,
+        f"cube外: {int(np.count_nonzero(cube_outside))}",
+        transform=ax.transAxes,
+        fontsize=8.5,
+        color=ARTICLE_COLORS["muted"],
+    )
+
+    ax.set_title(name, pad=8)
+
+plt.tight_layout()
+plt.show()
+```
+
+Demosaicでは、1サンプルから生じた複数のRGBベクトルがcube内部とその近傍に分布する。
+
+WBではチャンネル別ゲインによって、その点群がRGB軸方向へ引き伸ばされる。CCMでは成分間の混合が加わり、点群の向きも変化する。
+
+Clipでは各成分が0–1へ制限され、cube外のベクトルが面・辺・頂点へ写る。ここで複数のpreclip状態が同じ境界値を共有し、headroomの情報が失われる。
+
+## デモザイクを射影として見る
+
+CFAによる観測を線形作用素 $S$ とすると、
+
+$$
+y=Sx
+$$
+
+と書ける。
+
+Bayer CFAはRGB情報の一部しか観測しないため、同じRAW $y$ に対応するRGB画像は一般に一意ではない。
+
+$$
+\{x\mid Sx=y\}=x_0+\ker S.
+$$
+
+線形な再構成作用素を $D$ とし、観測値を保存する
+
+$$
+SD=I
+$$
+
+が成り立つなら、
+
+$$
+P=DS
+$$
+
+は
+
+$$
+P^2=P
+$$
+
+を満たす射影になる。
+
+この関係を2次元の模式図に落とすと、同じ観測値を持つ状態は $\ker S$ 方向の同じファイバーに並び、demosaicはそのファイバーから1つの代表点を選ぶ操作として描ける。
+
+```{python}
+#| label: fig-demosaic-oblique-projection
+#| fig-cap: "Demosaicを射影として見た模式図。同じRAW観測に対応する状態は x₀ + ker S 上に並び、再構成作用素Dが選ぶ部分空間 range(D) との交点が P=DS による再構成点になる。"
+#| fig-width: 7
+#| fig-height: 4.8
+
+fig, ax = plt.subplots(figsize=(7, 4.8))
+
+# Reconstruction subspace: y = m x
+m = 0.45
+xx = np.linspace(-0.2, 3.2, 300)
+ax.plot(xx, m * xx, linewidth=2.0, label="range(D)")
+
+# One affine fiber parallel to ker(S).
+k = np.array([0.50, 1.00])
+x1 = np.array([1.60, 1.70])
+t_to_range = (m * x1[0] - x1[1]) / (k[1] - m * k[0])
+px = x1 + t_to_range * k
+x2 = x1 + 0.72 * k
+
+tt = np.linspace(-1.7, 1.25, 200)
+fiber = x1[None, :] + tt[:, None] * k[None, :]
+ax.plot(
+    fiber[:, 0],
+    fiber[:, 1],
+    linewidth=1.4,
+    linestyle="--",
+    label=r"$x_0+\ker S$",
+)
+
+for point, label in [(x1, r"$x_1$"), (x2, r"$x_2$")]:
+    ax.scatter(point[0], point[1], s=42, zorder=4)
+    ax.annotate(
+        "",
+        xy=px,
+        xytext=point,
+        arrowprops=dict(arrowstyle="->", linewidth=1.2),
+    )
+    ax.text(point[0] + 0.06, point[1] + 0.05, label)
+
+ax.scatter(px[0], px[1], s=58, zorder=5)
+ax.text(px[0] + 0.06, px[1] - 0.17, r"$Px=DSx$")
+
+ax.set_xlim(-0.1, 3.0)
+ax.set_ylim(-0.1, 3.0)
+ax.set_aspect("equal", adjustable="box")
+ax.set_xlabel("schematic coordinate 1")
+ax.set_ylabel("schematic coordinate 2")
+ax.set_title("Oblique projection view of fixed linear demosaic")
+ax.legend(loc="upper left")
+ax.grid(True, alpha=0.22)
+
+plt.show()
+```
+
+この見方では、
+
+- CFA $S$ が「観測できなかった方向」を決める
+- demosaic $D$ が「どのRGB像として補完するか」を決める
+
+と整理できる。
+
+今回増やした実験をこの言葉で見ると、単一ホットサンプルは基底方向に近い入力であり、エッジ角度 sweep は構造を持つ入力群、noise実験は確率分布を持つ入力群である。
+
+さらに強度sweepでは、同じ入力方向に沿ってスカラーを変えたとき、再構成と色変換を経た像がどこで$[0,1]^3$の境界に接触するかを見ている。
+
+## 現時点で見えてきたこと
+
+ここまでの実験はすべて同じコードから再計算されている。
+
+現時点では少なくとも、
+
+- 単一異常の伝播はR / Gr / Gb / BのCFA位相で異なる
+- bilinearは凸補間なので入力範囲を保存する
+- MHCは線形でも非凸なので新しい極値を作り得る
+- 欠陥補正の順序によって、異常が広がる前に処理できるかが変わる
+- WBは再構成済みの色差をチャンネル別に増幅する
+- 負係数を含むCCMはさらにRGB立方体外への変位を作り得る
+- clipはpreclipの逸脱量を失う
+- 通常の明暗境界でも方向によって範囲逸脱の出方が変わる
+- shot/read noiseはdemosaic後にRGB相関を持ち、見かけの輝度・色差ノイズへ再配分される
+- 入力RAWが範囲内でも、後段のRGBは飽和前に境界へ接触し得る
+- 固定線形demosaicからCCMまでは重ね合わせが保たれ、clipで明示的に壊れる
+- RGB立方体表示にすると、headroomとclipによる情報消失を幾何的に観察できる
+
+という流れを、同じQuarto文書内で検証できる。
+
+次段では、AHD / Hamilton–Adams / VNG系のような適応的demosaicを追加すると、固定線形演算子で見えた性質が入力依存の処理でどう変わるかを比較できる。ほかに、複数ホットピクセルの配置依存性、飽和した有彩色境界、実RAWから切り出した小領域も比較対象になる。
+
+## 参考文献 {.unnumbered}
+
+## GitHub {.unnumbered}
+
+この記事の実験コードとQuarto文書は、[hot-pixel-journey](https://github.com/goldkiss2010-ai/hot-pixel-journey-public) で公開している。
