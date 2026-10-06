@@ -215,7 +215,7 @@ window.Quarto = {
     <div>
     <div class="quarto-title-meta-heading">公開</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">2026年10月6日</p>
+      <p class="date">2026年10月7日</p>
     </div>
   </div>
   
@@ -509,7 +509,7 @@ w_i \ge 0,\qquad \sum_i w_i=1
 センサー上で実際に記録された外れ値。</p></li>
 <li><p><strong>補間による空間的な伝播</strong><br>
 1サンプルが複数の再構成画素へ利用されることで影響範囲が広がる。</p></li>
-<li><p><strong>非凸な再構成によるovershoot / undershoot</strong><br>
+<li><p><strong>凸結合ではない再構成によるovershoot / undershoot</strong><br>
 入力には存在しなかった極値が演算によって生じる。</p></li>
 </ol>
 <p>この区別をしないと、「画像に赤い斑点が見える」という観察だけから、異常の発生源を逆算することは難しい。</p>
@@ -631,7 +631,7 @@ w_i \ge 0,\qquad \sum_i w_i=1
 </figure>
 </div>
 </div>
-<p>入力RAWを0–1に制限していても、非凸な再構成では境界近傍で新しい極値を作り得る。</p>
+<p>入力RAWを0–1に制限していても、負係数を含み凸結合ではない再構成では、境界近傍で新しい極値を作り得る。</p>
 <p>shot noiseの局所的な揺らぎは、負係数を含む再構成を通ることでovershoot / undershootの引き金になり得る。</p>
 </section>
 <section id="r-gr-gb-bで1点異常の広がり方は同じか" class="level2" data-number="8">
@@ -933,7 +933,7 @@ x'=Mx
 \]</span></p>
 <p>として適用する。</p>
 <p>カメラのR / G / Bは、そのカメラ固有の分光感度から得られる <strong>camera-native RGB</strong> である。したがって、同じ数値の<span class="math inline">\((R,G,B)\)</span>でも、そのままsRGBやDisplay P3のRGB座標を意味するわけではない。RAW現像では、ホワイトバランス後のcamera-native RGBを、CIE XYZや作業用の線形RGBなど、後段で扱いやすい色表現へ結び付けるために行列変換が使われる。</p>
-<p>DNGの色処理モデルも、撮影光に応じたカメラ固有の行列群を持ち、white-balanced camera colorsからPCS側へ写すForwardMatrixなどを定義している <span class="citation" data-cites="adobeDNG2023">(<a href="#ref-adobeDNG2023" role="doc-biblioref">Adobe 2023年</a>)</span>。実際のカメラプロファイルでは、複数光源間の補間、非線形なHue/Sat補正、Look Tableなどが加わることもある。したがって、ここでいうCCMは<strong>カラーマネジメント全体ではなく、その前段にある線形な色空間変換の最小モデル</strong>である。</p>
+<p>DNGの色処理モデルも、撮影光に応じたカメラ固有の行列群を持ち、camera coordinatesを選択したwhite balanceに応じてXYZ (D50)へ写す変換の一部としてForwardMatrixを定義している <span class="citation" data-cites="adobeDNG2023">(<a href="#ref-adobeDNG2023" role="doc-biblioref">Adobe 2023年</a>)</span>。実際のカメラプロファイルでは、複数光源間の補間、非線形なHue/Sat補正、Look Tableなどが加わることもある。したがって、ここでいうCCMは<strong>カラーマネジメント全体ではなく、その前段にある線形な色空間変換の最小モデル</strong>である。</p>
 <p>処理の位置関係を単純化すると、</p>
 $
 <span class="math display">\[\begin{aligned}
@@ -1160,7 +1160,7 @@ M(t,t,t)^\mathsf{T}=(t,t,t)^\mathsf{T}
 <section id="shot-noiseとread-noiseはデモザイク後にどう相関するか" class="level2" data-number="14">
 <h2 data-number="14" class="anchored" data-anchor-id="shot-noiseとread-noiseはデモザイク後にどう相関するか"><span class="header-section-number">14</span> Shot noiseとread noiseは、デモザイク後にどう相関するか</h2>
 <p>次は18%の一様な面にノイズを加え、入力を単一異常から確率的な揺らぎへ広げる。</p>
-<p>比較用の合成ノイズは、shot noiseをPoisson過程、read noiseをGaussian成分として重ねる単純なPoisson–Gaussianモデルで構成する <span class="citation" data-cites="foi2008">(<a href="#ref-foi2008" role="doc-biblioref">Foi ほか 2008年</a>)</span>。</p>
+<p>比較用の合成ノイズは、shot noiseをPoisson過程、read noiseをGaussian成分として重ねる単純なモデルで構成する。これは、RAWノイズをPoissonianな信号依存成分とGaussianな信号非依存成分に分けるFoi et al.のモデルを簡略化したものである <span class="citation" data-cites="foi2008">(<a href="#ref-foi2008" role="doc-biblioref">Foi ほか 2008年</a>)</span>。</p>
 <p>比較するのは次の3条件である。</p>
 <ol type="1">
 <li>shot noiseのみ</li>
@@ -1492,7 +1492,7 @@ P^2=P
 <ul>
 <li>単一異常の伝播はR / Gr / Gb / BのCFA位相で異なる</li>
 <li>bilinearは凸補間なので入力範囲を保存する</li>
-<li>MHCは線形でも非凸なので新しい極値を作り得る</li>
+<li>MHCは線形でも凸結合ではないため新しい極値を作り得る</li>
 <li>欠陥補正の順序によって、異常が広がる前に処理できるかが変わる</li>
 <li>WBは再構成済みの色差をチャンネル別に増幅する</li>
 <li>負係数を含むCCMはさらにRGB立方体外への変位を作り得る</li>
@@ -2282,7 +2282,7 @@ Malvar, Henrique S., Li-wei He, と Ross Cutler. 2004年. <span>「High-Quality 
 <span id="cb1-314"><a href="#cb1-314" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**補間による空間的な伝播**  </span>
 <span id="cb1-315"><a href="#cb1-315" aria-hidden="true" tabindex="-1"></a>   1サンプルが複数の再構成画素へ利用されることで影響範囲が広がる。</span>
 <span id="cb1-316"><a href="#cb1-316" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-317"><a href="#cb1-317" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**非凸な再構成によるovershoot / undershoot**  </span>
+<span id="cb1-317"><a href="#cb1-317" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**凸結合ではない再構成によるovershoot / undershoot**  </span>
 <span id="cb1-318"><a href="#cb1-318" aria-hidden="true" tabindex="-1"></a>   入力には存在しなかった極値が演算によって生じる。</span>
 <span id="cb1-319"><a href="#cb1-319" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-320"><a href="#cb1-320" aria-hidden="true" tabindex="-1"></a>この区別をしないと、「画像に赤い斑点が見える」という観察だけから、異常の発生源を逆算することは難しい。</span>
@@ -2322,7 +2322,7 @@ Malvar, Henrique S., Li-wei He, と Ross Cutler. 2004年. <span>「High-Quality 
 <span id="cb1-356"><a href="#cb1-356" aria-hidden="true" tabindex="-1"></a>pd.DataFrame(rows)</span>
 <span id="cb1-357"><a href="#cb1-357" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb1-358"><a href="#cb1-358" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-359"><a href="#cb1-359" aria-hidden="true" tabindex="-1"></a>入力RAWを0–1に制限していても、非凸な再構成では境界近傍で新しい極値を作り得る。</span>
+<span id="cb1-359"><a href="#cb1-359" aria-hidden="true" tabindex="-1"></a>入力RAWを0–1に制限していても、負係数を含み凸結合ではない再構成では、境界近傍で新しい極値を作り得る。</span>
 <span id="cb1-360"><a href="#cb1-360" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-361"><a href="#cb1-361" aria-hidden="true" tabindex="-1"></a>shot noiseの局所的な揺らぎは、負係数を含む再構成を通ることでovershoot / undershootの引き金になり得る。</span>
 <span id="cb1-362"><a href="#cb1-362" aria-hidden="true" tabindex="-1"></a></span>
@@ -2554,7 +2554,7 @@ Malvar, Henrique S., Li-wei He, と Ross Cutler. 2004年. <span>「High-Quality 
 <span id="cb1-598"><a href="#cb1-598" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-599"><a href="#cb1-599" aria-hidden="true" tabindex="-1"></a>カメラのR / G / Bは、そのカメラ固有の分光感度から得られる **camera-native RGB** である。したがって、同じ数値の$(R,G,B)$でも、そのままsRGBやDisplay P3のRGB座標を意味するわけではない。RAW現像では、ホワイトバランス後のcamera-native RGBを、CIE XYZや作業用の線形RGBなど、後段で扱いやすい色表現へ結び付けるために行列変換が使われる。</span>
 <span id="cb1-600"><a href="#cb1-600" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-601"><a href="#cb1-601" aria-hidden="true" tabindex="-1"></a>DNGの色処理モデルも、撮影光に応じたカメラ固有の行列群を持ち、white-balanced camera colorsからPCS側へ写すForwardMatrixなどを定義している <span class="co">[</span><span class="ot">@adobeDNG2023</span><span class="co">]</span>。実際のカメラプロファイルでは、複数光源間の補間、非線形なHue/Sat補正、Look Tableなどが加わることもある。したがって、ここでいうCCMは**カラーマネジメント全体ではなく、その前段にある線形な色空間変換の最小モデル**である。</span>
+<span id="cb1-601"><a href="#cb1-601" aria-hidden="true" tabindex="-1"></a>DNGの色処理モデルも、撮影光に応じたカメラ固有の行列群を持ち、camera coordinatesを選択したwhite balanceに応じてXYZ (D50)へ写す変換の一部としてForwardMatrixを定義している <span class="co">[</span><span class="ot">@adobeDNG2023</span><span class="co">]</span>。実際のカメラプロファイルでは、複数光源間の補間、非線形なHue/Sat補正、Look Tableなどが加わることもある。したがって、ここでいうCCMは**カラーマネジメント全体ではなく、その前段にある線形な色空間変換の最小モデル**である。</span>
 <span id="cb1-602"><a href="#cb1-602" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-603"><a href="#cb1-603" aria-hidden="true" tabindex="-1"></a>処理の位置関係を単純化すると、</span>
 <span id="cb1-604"><a href="#cb1-604" aria-hidden="true" tabindex="-1"></a></span>
@@ -2821,7 +2821,7 @@ Malvar, Henrique S., Li-wei He, と Ross Cutler. 2004年. <span>「High-Quality 
 <span id="cb1-877"><a href="#cb1-877" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-878"><a href="#cb1-878" aria-hidden="true" tabindex="-1"></a>次は18%の一様な面にノイズを加え、入力を単一異常から確率的な揺らぎへ広げる。</span>
 <span id="cb1-879"><a href="#cb1-879" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-880"><a href="#cb1-880" aria-hidden="true" tabindex="-1"></a>比較用の合成ノイズは、shot noiseをPoisson過程、read noiseをGaussian成分として重ねる単純なPoisson–Gaussianモデルで構成する <span class="co">[</span><span class="ot">@foi2008</span><span class="co">]</span>。</span>
+<span id="cb1-880"><a href="#cb1-880" aria-hidden="true" tabindex="-1"></a>比較用の合成ノイズは、shot noiseをPoisson過程、read noiseをGaussian成分として重ねる単純なモデルで構成する。これは、RAWノイズをPoissonianな信号依存成分とGaussianな信号非依存成分に分けるFoi et al.のモデルを簡略化したものである <span class="co">[</span><span class="ot">@foi2008</span><span class="co">]</span>。</span>
 <span id="cb1-881"><a href="#cb1-881" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-882"><a href="#cb1-882" aria-hidden="true" tabindex="-1"></a>比較するのは次の3条件である。</span>
 <span id="cb1-883"><a href="#cb1-883" aria-hidden="true" tabindex="-1"></a></span>
@@ -3522,7 +3522,7 @@ Malvar, Henrique S., Li-wei He, と Ross Cutler. 2004年. <span>「High-Quality 
 <span id="cb1-1592"><a href="#cb1-1592" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-1593"><a href="#cb1-1593" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>単一異常の伝播はR / Gr / Gb / BのCFA位相で異なる</span>
 <span id="cb1-1594"><a href="#cb1-1594" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>bilinearは凸補間なので入力範囲を保存する</span>
-<span id="cb1-1595"><a href="#cb1-1595" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>MHCは線形でも非凸なので新しい極値を作り得る</span>
+<span id="cb1-1595"><a href="#cb1-1595" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>MHCは線形でも凸結合ではないため新しい極値を作り得る</span>
 <span id="cb1-1596"><a href="#cb1-1596" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>欠陥補正の順序によって、異常が広がる前に処理できるかが変わる</span>
 <span id="cb1-1597"><a href="#cb1-1597" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>WBは再構成済みの色差をチャンネル別に増幅する</span>
 <span id="cb1-1598"><a href="#cb1-1598" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>負係数を含むCCMはさらにRGB立方体外への変位を作り得る</span>
