@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this technical note or its code, please cite this repository."
+title: "ホットピクセルの一生: Bayer RAWからRGB画像まで、異常サンプルの運命を追う"
+type: software
+authors:
+  - family-names: "Yokota"
+    given-names: "Bungaku"
+version: 1.0.0
+date-released: 2026-10-07
+url: "https://goldkiss2010-ai.github.io/hot-pixel-journey-public/"
+repository-code: "https://github.com/goldkiss2010-ai/hot-pixel-journey-public"
+license: MIT
