@@ -8,6 +8,7 @@ project:
 
 website:
   title: "ホットピクセルの一生"
+  site-url: "https://goldkiss2010-ai.github.io/hot-pixel-journey-public/"
   navbar: false
 
 format:
