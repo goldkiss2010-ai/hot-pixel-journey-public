@@ -573,6 +573,7 @@ DNGの色処理モデルも、撮影光に応じたカメラ固有の行列群�
 処理の位置関係を単純化すると、
 
 
+$$
 \begin{aligned}
 \text{camera-native RGB}
 &\xrightarrow{\text{WB}}
@@ -584,6 +585,7 @@ DNGの色処理モデルも、撮影光に応じたカメラ固有の行列群�
 &\xrightarrow{\text{render / gamut / transfer}}
 \text{display RGB}
 \end{aligned}
+$$
 
 
 と見られる。
