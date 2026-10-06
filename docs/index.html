@@ -383,7 +383,7 @@ w_i \ge 0,\qquad \sum_i w_i=1
 表&nbsp;1: MHC各カーネルが、独立な入力 x_i ∈ [0,1] に対して理論上取り得る出力範囲。
 </figcaption>
 <div aria-describedby="tbl-mhc-theoretical-range-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div class="cell-output cell-output-display" data-execution_count="7">
+<div class="cell-output cell-output-display" data-execution_count="91">
 <div>
 
 
@@ -448,7 +448,7 @@ w_i \ge 0,\qquad \sum_i w_i=1
 表&nbsp;2: 単一Rホットピクセルに対するbilinearとMHCの比較
 </figcaption>
 <div aria-describedby="tbl-hotpixel-result-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div class="cell-output cell-output-display" data-execution_count="9">
+<div class="cell-output cell-output-display" data-execution_count="93">
 <div>
 
 
@@ -524,7 +524,7 @@ w_i \ge 0,\qquad \sum_i w_i=1
 表&nbsp;3: 0–1内の明暗境界に対するdemosaic後の範囲逸脱。
 </figcaption>
 <div aria-describedby="tbl-step-boundary-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div class="cell-output cell-output-display" data-execution_count="10">
+<div class="cell-output cell-output-display" data-execution_count="94">
 <div>
 
 
@@ -649,7 +649,7 @@ w_i \ge 0,\qquad \sum_i w_i=1
 表&nbsp;4: CFA位相ごとの単一ホットサンプル伝播。入力値はすべて1、背景は0。
 </figcaption>
 <div aria-describedby="tbl-cfa-phase-hotpixel-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div class="cell-output cell-output-display" data-execution_count="11">
+<div class="cell-output cell-output-display" data-execution_count="95">
 <div>
 
 
@@ -784,7 +784,7 @@ w_i \ge 0,\qquad \sum_i w_i=1
 表&nbsp;5: 単一欠陥サンプルをデモザイク前に補正した場合の誤差。補正法は説明用の同位相中央値。
 </figcaption>
 <div aria-describedby="tbl-defect-correction-order-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div class="cell-output cell-output-display" data-execution_count="13">
+<div class="cell-output cell-output-display" data-execution_count="97">
 <div>
 
 
@@ -935,7 +935,6 @@ x'=Mx
 <p>カメラのR / G / Bは、そのカメラ固有の分光感度から得られる <strong>camera-native RGB</strong> である。したがって、同じ数値の<span class="math inline">\((R,G,B)\)</span>でも、そのままsRGBやDisplay P3のRGB座標を意味するわけではない。RAW現像では、ホワイトバランス後のcamera-native RGBを、CIE XYZや作業用の線形RGBなど、後段で扱いやすい色表現へ結び付けるために行列変換が使われる。</p>
 <p>DNGの色処理モデルも、撮影光に応じたカメラ固有の行列群を持ち、camera coordinatesを選択したwhite balanceに応じてXYZ (D50)へ写す変換の一部としてForwardMatrixを定義している <span class="citation" data-cites="adobeDNG2023">(<a href="#ref-adobeDNG2023" role="doc-biblioref">Adobe 2023年</a>)</span>。実際のカメラプロファイルでは、複数光源間の補間、非線形なHue/Sat補正、Look Tableなどが加わることもある。したがって、ここでいうCCMは<strong>カラーマネジメント全体ではなく、その前段にある線形な色空間変換の最小モデル</strong>である。</p>
 <p>処理の位置関係を単純化すると、</p>
-$
 <span class="math display">\[\begin{aligned}
 \text{camera-native RGB}
 &amp;\xrightarrow{\text{WB}}
@@ -947,7 +946,6 @@ $
 &amp;\xrightarrow{\text{render / gamut / transfer}}
 \text{display RGB}
 \end{aligned}\]</span>
-<p>$</p>
 <p>と見られる。</p>
 <p>本稿では、<strong>中性軸を保存しつつ負係数を含む説明用CCM</strong>を採用する。行和を1にしているため、</p>
 <p><span class="math display">\[
@@ -961,7 +959,7 @@ M(t,t,t)^\mathsf{T}=(t,t,t)^\mathsf{T}
 表&nbsp;6: 単一RホットサンプルをMHC → WB → 説明用CCM → clipへ通した各段階の範囲。WB=(2.0,1.0,1.7)。
 </figcaption>
 <div aria-describedby="tbl-pipeline-stages-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div class="cell-output cell-output-display" data-execution_count="16">
+<div class="cell-output cell-output-display" data-execution_count="100">
 <div>
 
 
@@ -1061,7 +1059,7 @@ M(t,t,t)^\mathsf{T}=(t,t,t)^\mathsf{T}
 表&nbsp;7: CCM後のRGBを0–1へclipしたとき、何画素・何成分が変更されたか。
 </figcaption>
 <div aria-describedby="tbl-clip-destruction-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div class="cell-output cell-output-display" data-execution_count="18">
+<div class="cell-output cell-output-display" data-execution_count="102">
 <div>
 
 
@@ -1175,7 +1173,7 @@ M(t,t,t)^\mathsf{T}=(t,t,t)^\mathsf{T}
 表&nbsp;8: 18%中性面に加えたノイズのdemosaic後統計。中央領域のみを使用。Rec.709係数を診断方向として使用。
 </figcaption>
 <div aria-describedby="tbl-noise-covariance-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div class="cell-output cell-output-display" data-execution_count="22">
+<div class="cell-output cell-output-display" data-execution_count="106">
 <div>
 
 
@@ -1353,7 +1351,7 @@ D(x_1+x_2)=D(x_1)+D(x_2)
 表&nbsp;9: 2つの単一異常に対する重ね合わせ誤差。clip前の線形段階とclip後を比較。
 </figcaption>
 <div aria-describedby="tbl-superposition-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div class="cell-output cell-output-display" data-execution_count="25">
+<div class="cell-output cell-output-display" data-execution_count="109">
 <div>
 
 
@@ -2558,7 +2556,7 @@ Malvar, Henrique S., Li-wei He, と Ross Cutler. 2004年. <span>「High-Quality 
 <span id="cb1-602"><a href="#cb1-602" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-603"><a href="#cb1-603" aria-hidden="true" tabindex="-1"></a>処理の位置関係を単純化すると、</span>
 <span id="cb1-604"><a href="#cb1-604" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-605"><a href="#cb1-605" aria-hidden="true" tabindex="-1"></a>$</span>
+<span id="cb1-605"><a href="#cb1-605" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-606"><a href="#cb1-606" aria-hidden="true" tabindex="-1"></a>\begin{aligned}</span>
 <span id="cb1-607"><a href="#cb1-607" aria-hidden="true" tabindex="-1"></a>\text{camera-native RGB}</span>
 <span id="cb1-608"><a href="#cb1-608" aria-hidden="true" tabindex="-1"></a>&amp;\xrightarrow{\text{WB}}</span>
@@ -2570,7 +2568,7 @@ Malvar, Henrique S., Li-wei He, と Ross Cutler. 2004年. <span>「High-Quality 
 <span id="cb1-614"><a href="#cb1-614" aria-hidden="true" tabindex="-1"></a>&amp;\xrightarrow{\text{render / gamut / transfer}}</span>
 <span id="cb1-615"><a href="#cb1-615" aria-hidden="true" tabindex="-1"></a>\text{display RGB}</span>
 <span id="cb1-616"><a href="#cb1-616" aria-hidden="true" tabindex="-1"></a>\end{aligned}</span>
-<span id="cb1-617"><a href="#cb1-617" aria-hidden="true" tabindex="-1"></a>$</span>
+<span id="cb1-617"><a href="#cb1-617" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-618"><a href="#cb1-618" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-619"><a href="#cb1-619" aria-hidden="true" tabindex="-1"></a>と見られる。</span>
 <span id="cb1-620"><a href="#cb1-620" aria-hidden="true" tabindex="-1"></a></span>
