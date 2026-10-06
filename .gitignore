@@ -5,7 +5,7 @@ __pycache__/
 /.quarto/
 **/*.quarto_ipynb
 _site/
-index_files/
+/index_files/
 .DS_Store
 Thumbs.db
 _freeze/
