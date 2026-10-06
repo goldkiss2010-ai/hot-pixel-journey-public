@@ -835,6 +835,8 @@ plt.show()
 
 次は18%の一様な面にノイズを加え、入力を単一異常から確率的な揺らぎへ広げる。
 
+比較用の合成ノイズは、shot noiseをPoisson過程、read noiseをGaussian成分として重ねる単純なPoisson–Gaussianモデルで構成する [@foi2008]。
+
 比較するのは次の3条件である。
 
 1. shot noiseのみ
