@@ -10,3 +10,4 @@ _site/
 Thumbs.db
 _freeze/
 /_*.local
+/papers/
