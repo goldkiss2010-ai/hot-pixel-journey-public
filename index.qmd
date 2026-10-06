@@ -961,7 +961,7 @@ for row, method_name in enumerate(method_order):
         if row == 0:
             ax.set_title(noise_name)
         if col == 0:
-            ax.set_ylabel(f"{method_name}\\nΔ(B−G)")
+            ax.set_ylabel(f"{method_name}\nΔ(B−G)")
         if row == 1:
             ax.set_xlabel("Δ(R−G)")
 
