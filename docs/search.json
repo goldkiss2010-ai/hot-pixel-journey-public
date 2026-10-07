@@ -1,17 +1,31 @@
 [
   {
+    "objectID": "slides/narration_4min.html",
+    "href": "slides/narration_4min.html",
+    "title": "",
+    "section": "",
+    "text": "コード"
+  },
+  {
+    "objectID": "slides/narration_4min.html#収録時の扱い",
+    "href": "slides/narration_4min.html#収録時の扱い",
+    "title": "",
+    "section": "1.1 収録時の扱い",
+    "text": "1.1 収録時の扱い\nこの原稿は5秒単位の編集基準です。実際の発話で少し前後して構いません。図を丁寧に見せたい箇所は、同じ静止画を延長するか、次のユニットへ自然につないでください。\nSRTは視覚的な補助、ナレーションは耳で理解するための説明として、完全一致させる必要はありません。特に表、散布図、折れ線グラフでは、画面上の数値をすべて読み上げるより、「どこを見るか」と「何が分かるか」を声で案内する方針です。"
+  },
+  {
     "objectID": "index.html",
     "href": "index.html",
     "title": "ホットピクセルの一生",
     "section": "",
-    "text": "暗い写真を拡大すると、赤や緑の点、あるいは小さな色の斑点が見えることがある。\nそれを私たちはしばしば「センサーのホットピクセル」や「カラーノイズ」と呼ぶ。最終画像に見えている色付きの点は、センサー上の1サンプルから始まり、デモザイクと色変換を経て形成される。\nBayer型の撮像素子では、各受光位置が記録するのは R / G / B のうち1成分だけである。欠けている2成分は、後段の demosaic（デモザイク） によって推定される。\nそこで今回は、できるだけ単純な問いから始める。\n\nBayer RAW上で、たった1つの赤サンプルだけが異常値を持っていたら、その1点はRGB画像になるまでに何が起こるのか。\n\nこの1点を、処理の各段階で追跡する。\n\n\n\n\n\n\nノート今回の目的\n\n\n\nここでは合成したRGGB Bayerデータを採用し、再構成アルゴリズムそのものが1つの外れ値をどのように変換するかを調べる。"
+    "text": "暗い写真を拡大すると、赤や緑の点、あるいは小さな色の斑点が見えることがある。\nそれを私たちはしばしば「センサーのホットピクセル」や「カラーノイズ」と呼ぶ。最終画像に見えている色付きの点は、センサー上の1サンプルから始まり、デモザイクと色変換を経て形成される。\nBayer型の撮像素子では、各受光位置が記録するのは R / G / B のうち1成分だけである。欠けている2成分は、後段の demosaic（デモザイク） によって推定される。\nそこで今回は、できるだけ単純な問いから始める。\n\nBayer RAW上で、たった1つの赤サンプルだけが異常値を持っていたら、その1点はRGB画像になるまでに何が起こるのか。\n\nこの1点を、処理の各段階で追跡する。\n\n\n\n\n\n\nノート今回の目的\n\n\n\nここでは合成したRGGB Bayerデータを採用し、再構成アルゴリズムそのものが1つの外れ値をどのように変換するかを調べる。\n\n\n\n\n\n\n\n\nヒント解説動画\n\n\n\nこの記事の内容を図解した日本語の解説動画を公開しています。\nYouTubeで見る"
   },
   {
     "objectID": "index.html#はじめに",
     "href": "index.html#はじめに",
     "title": "ホットピクセルの一生",
     "section": "",
-    "text": "暗い写真を拡大すると、赤や緑の点、あるいは小さな色の斑点が見えることがある。\nそれを私たちはしばしば「センサーのホットピクセル」や「カラーノイズ」と呼ぶ。最終画像に見えている色付きの点は、センサー上の1サンプルから始まり、デモザイクと色変換を経て形成される。\nBayer型の撮像素子では、各受光位置が記録するのは R / G / B のうち1成分だけである。欠けている2成分は、後段の demosaic（デモザイク） によって推定される。\nそこで今回は、できるだけ単純な問いから始める。\n\nBayer RAW上で、たった1つの赤サンプルだけが異常値を持っていたら、その1点はRGB画像になるまでに何が起こるのか。\n\nこの1点を、処理の各段階で追跡する。\n\n\n\n\n\n\nノート今回の目的\n\n\n\nここでは合成したRGGB Bayerデータを採用し、再構成アルゴリズムそのものが1つの外れ値をどのように変換するかを調べる。"
+    "text": "暗い写真を拡大すると、赤や緑の点、あるいは小さな色の斑点が見えることがある。\nそれを私たちはしばしば「センサーのホットピクセル」や「カラーノイズ」と呼ぶ。最終画像に見えている色付きの点は、センサー上の1サンプルから始まり、デモザイクと色変換を経て形成される。\nBayer型の撮像素子では、各受光位置が記録するのは R / G / B のうち1成分だけである。欠けている2成分は、後段の demosaic（デモザイク） によって推定される。\nそこで今回は、できるだけ単純な問いから始める。\n\nBayer RAW上で、たった1つの赤サンプルだけが異常値を持っていたら、その1点はRGB画像になるまでに何が起こるのか。\n\nこの1点を、処理の各段階で追跡する。\n\n\n\n\n\n\nノート今回の目的\n\n\n\nここでは合成したRGGB Bayerデータを採用し、再構成アルゴリズムそのものが1つの外れ値をどのように変換するかを調べる。\n\n\n\n\n\n\n\n\nヒント解説動画\n\n\n\nこの記事の内容を図解した日本語の解説動画を公開しています。\nYouTubeで見る"
   },
   {
     "objectID": "index.html#bayer-rawでは1サイトが1成分を記録する",
@@ -152,5 +166,236 @@
     "title": "ホットピクセルの一生",
     "section": "GitHub",
     "text": "GitHub\nこの記事の実験コードとQuarto文書は、hot-pixel-journey で公開している。"
+  },
+  {
+    "objectID": "slides/narration.html",
+    "href": "slides/narration.html",
+    "title": "",
+    "section": "",
+    "text": "コード"
+  },
+  {
+    "objectID": "slides/narration.html#タイトル",
+    "href": "slides/narration.html#タイトル",
+    "title": "",
+    "section": "1.1 タイトル",
+    "text": "1.1 タイトル\n[画面: タイトル]\n暗い写真を拡大すると、赤や緑の点、小さな色の斑点が見えることがあります。\n今回は、その中でもかなり単純なケースを使います。\nセンサー上のたった1つの異常サンプルを出発点にして、それが画像処理の途中でどう変化し、最終的なRGB画像では何として見えるのかを追います。\n題して、「ホットピクセルの一生」です。"
+  },
+  {
+    "objectID": "slides/narration.html#今回の問い",
+    "href": "slides/narration.html#今回の問い",
+    "title": "",
+    "section": "1.2 今回の問い",
+    "text": "1.2 今回の問い\n[画面: 今回の問い]\n今回の問いは一つです。\nBayer RAW上で、Rサイト1点だけが異常値を持っていたら、その1点は最終RGB画像になるまでに何へ変わるのか。\nここでは、実機ごとのノイズ量や欠陥画素の発生率を評価するのではありません。\n合成したRGGBデータを使って、画像処理そのものの性質を見ます。\nつまり、異常がどこで広がり、どこで増幅され、どこで新しい極値が生まれ、最後に何が見えなくなるのかを分けて考えます。"
+  },
+  {
+    "objectID": "slides/narration.html#全体パイプライン",
+    "href": "slides/narration.html#全体パイプライン",
+    "title": "",
+    "section": "1.3 全体パイプライン",
+    "text": "1.3 全体パイプライン\n[画面: RAW → demosaic → defect correction → WB → CCM → clip]\nまず、今回通る処理を並べます。\n出発点はRAWです。\n欠陥補正をするなら、デモザイクより前に行います。\nその後、デモザイクでRGBを再構成し、ホワイトバランスで各チャンネルの倍率を調整し、CCMで色成分を混合し、最後にclipで出力範囲へ収めます。\nここからは、この順番に沿って見ていきます。"
+  },
+  {
+    "objectID": "slides/narration.html#bayer-rawではまだrgb画素ではない",
+    "href": "slides/narration.html#bayer-rawではまだrgb画素ではない",
+    "title": "",
+    "section": "1.4 Bayer RAWでは、まだRGB画素ではない",
+    "text": "1.4 Bayer RAWでは、まだRGB画素ではない\n[画面: Bayer overview]\nまずBayer RAWです。\nRGGB配列では、各受光位置が記録するのはR、G、Bのうち1成分だけです。\n完成画像の1画素には3成分ありますが、RAWの段階ではそうではありません。\n今回追跡するRサイトの異常も、まだ「赤いRGB画素」ではありません。\n存在するのは、ある位置で観測された1つの赤成分のサンプルです。"
+  },
+  {
+    "objectID": "slides/narration.html#出発点はrサイト1点",
+    "href": "slides/narration.html#出発点はrサイト1点",
+    "title": "",
+    "section": "1.5 出発点はRサイト1点",
+    "text": "1.5 出発点はRサイト1点\n[画面: Bayer hot pixel]\n背景を完全な黒にして、中央付近のRサイト1点だけを1、それ以外を0にします。\nかなり人工的な入力ですが、その分、ひとつのサンプルがどこへ影響したのかを追いやすくなります。\nここから、観測されていないGとBの成分をデモザイクで補っていきます。"
+  },
+  {
+    "objectID": "slides/narration.html#bilinearでは何が起こるか",
+    "href": "slides/narration.html#bilinearでは何が起こるか",
+    "title": "",
+    "section": "1.6 Bilinearでは何が起こるか",
+    "text": "1.6 Bilinearでは何が起こるか\n[画面: Bilinear overview]\n最初はBilinear補間です。\n欠けている値を、近傍サンプルの加重平均として作ります。\n重みがすべて0以上で、合計が1なら、出力は近傍値の凸結合になります。\nこの性質から、入力が0から1の範囲なら、Bilinearだけで0未満や1を超える値は作られません。"
+  },
+  {
+    "objectID": "slides/narration.html#bilinear後の空間的な広がり",
+    "href": "slides/narration.html#bilinear後の空間的な広がり",
+    "title": "",
+    "section": "1.7 Bilinear後の空間的な広がり",
+    "text": "1.7 Bilinear後の空間的な広がり\n[画面: Bilinear hot pixel]\nただし、1点の影響は1点のままではありません。\nそのサンプルが周囲の欠損成分を補うために使われるので、完成RGB画像では複数の画素へ影響が広がります。\nここで起きているのは、値の範囲を超える増幅ではなく、空間的な伝播です。\nこの二つは分けて考えます。"
+  },
+  {
+    "objectID": "slides/narration.html#mhcでは何が変わるか",
+    "href": "slides/narration.html#mhcでは何が変わるか",
+    "title": "",
+    "section": "1.8 MHCでは何が変わるか",
+    "text": "1.8 MHCでは何が変わるか\n[画面: MHC overview]\n次にMalvar–He–Cutler、MHCです。\nMHCはBayer CFA向けの固定線形デモザイクで、Bilinearを土台にしながら、5×5近傍から得た補正項を加えます。\nここで重要なのは、そのカーネルに負の係数が含まれることです。\n固定線形ではありますが、凸結合ではありません。\nそのため、入力が0から1に収まっていても、出力はその範囲を外れる可能性があります。"
+  },
+  {
+    "objectID": "slides/narration.html#mhc後のovershoot-undershoot",
+    "href": "slides/narration.html#mhc後のovershoot-undershoot",
+    "title": "",
+    "section": "1.9 MHC後のovershoot / undershoot",
+    "text": "1.9 MHC後のovershoot / undershoot\n[画面: MHC hot pixel]\n実際に同じRサイト1点をMHCに通すと、周囲に負の値が生じます。\nこれはセンサーが負の値を記録したわけではありません。\n再構成計算によって新しく作られた値です。\nここで初めて、センサー上の異常と、再構成後に生まれた極値を区別できます。"
+  },
+  {
+    "objectID": "slides/narration.html#数値表でbilinearとmhcを比べる",
+    "href": "slides/narration.html#数値表でbilinearとmhcを比べる",
+    "title": "",
+    "section": "1.10 数値表でBilinearとMHCを比べる",
+    "text": "1.10 数値表でBilinearとMHCを比べる\n[画面: hot pixel result table]\nこの表では、同じ入力に対するBilinearとMHCの出力範囲を比較しています。\n注目するのは、最大値と最小値です。\nBilinearは入力範囲内に留まります。\nMHCでは負側への逸脱が確認できます。\nここでは見た目の優劣ではなく、演算子の値域保存性が違うことを確認しています。"
+  },
+  {
+    "objectID": "slides/narration.html#異常1点は三段階に分ける",
+    "href": "slides/narration.html#異常1点は三段階に分ける",
+    "title": "",
+    "section": "1.11 異常1点は三段階に分ける",
+    "text": "1.11 異常1点は三段階に分ける\n[画面: 三段階カード]\nここまでで、ホットピクセルを三つの段階に分けられます。\n一つ目は、RAW段階の外れ値。\n二つ目は、補間による空間伝播。\n三つ目は、凸結合ではない再構成によるovershootやundershootです。\nこの三つを分けると、最終画像上の「色のついた点」を一つの現象として扱わずに済みます。"
+  },
+  {
+    "objectID": "slides/narration.html#ホットピクセルだけの特殊な話なのか",
+    "href": "slides/narration.html#ホットピクセルだけの特殊な話なのか",
+    "title": "",
+    "section": "1.12 ホットピクセルだけの特殊な話なのか",
+    "text": "1.12 ホットピクセルだけの特殊な話なのか\n[画面: step boundary table]\n次に、入力を変えます。\n1点の外れ値ではなく、0から1の範囲内にある通常の鋭い明暗境界を使います。\n結果を見ると、MHCでは境界付近でも範囲逸脱が生じます。\nつまり、負係数によるovershootやundershootは、ホットピクセルだけの特殊な現象ではありません。\n局所的に変化の大きい信号一般に関係する性質です。"
+  },
+  {
+    "objectID": "slides/narration.html#cfa位相で広がりはどう変わるか",
+    "href": "slides/narration.html#cfa位相で広がりはどう変わるか",
+    "title": "",
+    "section": "1.13 CFA位相で広がりはどう変わるか",
+    "text": "1.13 CFA位相で広がりはどう変わるか\n[画面: R / Gr / Gb / B figure]\n次は、異常を置くCFA位相を変えます。\nRGGB配列にはRとBに加えて、赤と同じ行にあるGr、青と同じ行にあるGbがあります。\n同じ値1の異常を、それぞれの位相に置いて比較します。\n図を見ると、再構成後の空間パターンが位相ごとに異なります。\n特にGrとGbは同じ緑成分ですが、格子上の向きが違うため、MHCでは90度回転したような関係が現れます。"
+  },
+  {
+    "objectID": "slides/narration.html#cfa位相ごとの数値表",
+    "href": "slides/narration.html#cfa位相ごとの数値表",
+    "title": "",
+    "section": "1.14 CFA位相ごとの数値表",
+    "text": "1.14 CFA位相ごとの数値表\n[画面: CFA phase table]\n表では、その違いを数値で確認します。\n入力値の大きさはすべて同じです。\n変えているのは位置だけです。\nそれでも結果が変わるので、1点異常の伝播は強さだけでなく、CFA格子上の位相にも依存することが分かります。"
+  },
+  {
+    "objectID": "slides/narration.html#欠陥補正の順序",
+    "href": "slides/narration.html#欠陥補正の順序",
+    "title": "",
+    "section": "1.15 欠陥補正の順序",
+    "text": "1.15 欠陥補正の順序\n[画面: defect correction table]\nここまで見ると、デモザイク前の欠陥補正の意味が分かりやすくなります。\nデモザイク前なら、異常はまだ1サンプルです。\nこの段階で補正できれば、広がる前に処理できます。\n今回は説明用として、同じCFA位相の近傍中央値で置き換える単純な補正を使っています。\n補正器そのものの性能より、処理する順番を見ています。"
+  },
+  {
+    "objectID": "slides/narration.html#欠陥補正の結果",
+    "href": "slides/narration.html#欠陥補正の結果",
+    "title": "",
+    "section": "1.16 欠陥補正の結果",
+    "text": "1.16 欠陥補正の結果\n[画面: defect correction visual]\n上段が補正前後のCFAです。\n下段は、MHC後に基準画像との差がどこへ広がったかを示しています。\n補正しない場合は、1点の異常が再構成後に周囲へ広がります。\n一方、事前にその1点を補正すると、後段の誤差も大きく減ります。\n処理順序が、そのまま影響範囲の大きさにつながっています。"
+  },
+  {
+    "objectID": "slides/narration.html#wbは何をするのか",
+    "href": "slides/narration.html#wbは何をするのか",
+    "title": "",
+    "section": "1.17 WBは何をするのか",
+    "text": "1.17 WBは何をするのか\n[画面: WB gain sweep]\n次はホワイトバランスです。\nここでは、MHC後の画像に対して赤ゲインだけを1から4まで変えています。\nグラフの横軸が赤のWBゲイン、縦軸がclip前の最大成分です。\nゲインを上げると、すでに存在する異常の大きさも比例して増えていきます。\nWBは空間的な広がりを新しく作る処理ではありません。\n再構成済みのRGBを、チャンネルごとに拡大する処理です。"
+  },
+  {
+    "objectID": "slides/narration.html#ccmでは何が起こるか",
+    "href": "slides/narration.html#ccmでは何が起こるか",
+    "title": "",
+    "section": "1.18 CCMでは何が起こるか",
+    "text": "1.18 CCMでは何が起こるか\n[画面: CCM card]\n次にCCM、Color Correction Matrixです。\nカメラのR、G、Bは、そのカメラ固有の分光感度から得られるcamera-native RGBです。\nこれはそのままsRGBやDisplay P3の座標ではありません。\nRAW現像では、ホワイトバランス後のcamera-native RGBを、XYZや作業用RGBなどへ結び付けるために行列変換が使われます。\n実際のカメラプロファイルはもっと複雑ですが、ここでは色成分を線形に混合する最小モデルとしてCCMを使います。\n今回のCCMは中性軸を保存します。\n一方で色差方向には負係数を含むため、RGB立方体の外へ値を押し出すことがあります。"
+  },
+  {
+    "objectID": "slides/narration.html#同じ1点をパイプライン全体で追う",
+    "href": "slides/narration.html#同じ1点をパイプライン全体で追う",
+    "title": "",
+    "section": "1.19 同じ1点をパイプライン全体で追う",
+    "text": "1.19 同じ1点をパイプライン全体で追う\n[画面: pipeline stages figure]\nここで同じ異常を処理段階ごとに並べます。\nDemosaicでは、1サンプルの影響が周囲へ広がります。\nWBでは、各チャンネルの大きさが変わります。\nCCMでは、R、G、Bが混合され、RGBベクトルの方向も変わります。\n最後のclipでは、0未満を0へ、1を超えた値を1へ制限します。\nこの一枚で、同じ異常が「広がる」「増幅される」「混ざる」「境界へ押し戻される」という別々の処理を順に通っていることが分かります。"
+  },
+  {
+    "objectID": "slides/narration.html#clipが変更した量",
+    "href": "slides/narration.html#clipが変更した量",
+    "title": "",
+    "section": "1.20 clipが変更した量",
+    "text": "1.20 clipが変更した量\n[画面: clip table]\nこの表では、CCM後のRGBに対してclipが実際に何画素、何成分を書き換えたかを見ています。\nここで重要なのは、clip後の画像だけを見ても、変更前にどれだけ範囲外へ出ていたかは分からないことです。\nそこで次の図で、clipそのものの写像を見ます。"
+  },
+  {
+    "objectID": "slides/narration.html#clipは何を隠すのか",
+    "href": "slides/narration.html#clipは何を隠すのか",
+    "title": "",
+    "section": "1.21 clipは何を隠すのか",
+    "text": "1.21 clipは何を隠すのか\n[画面: clip transfer]\n1成分だけ取り出すと、clipは非常に単純です。\n0未満は0へ。\n0から1はそのまま。\n1を超えた値は1へ。\nこの写像では、異なる複数の入力が同じ境界値に集約されます。\nたとえば1.02も2.8も、clip後はどちらも1です。\n最終画像上で同じ飽和値に見えていても、内部のheadroomは同じではありません。\nclipは範囲外値を見えなくしますが、その値が存在しなかったことにはなりません。"
+  },
+  {
+    "objectID": "slides/narration.html#鋭い境界を回転させる",
+    "href": "slides/narration.html#鋭い境界を回転させる",
+    "title": "",
+    "section": "1.22 鋭い境界を回転させる",
+    "text": "1.22 鋭い境界を回転させる\n[画面: edge angle sweep]\n次は中性のstep edgeを回転させます。\n0度から175度まで角度を変え、デモザイク後に0から1を外れた画素数を数えています。\n横軸が境界の向き、縦軸が範囲逸脱した画素数です。\nMHCでは、角度によって逸脱量が変化します。\n同じ明暗差でも、境界方向とCFA格子の関係によって再構成結果が変わるということです。"
+  },
+  {
+    "objectID": "slides/narration.html#実際の空間パターンを見る",
+    "href": "slides/narration.html#実際の空間パターンを見る",
+    "title": "",
+    "section": "1.23 実際の空間パターンを見る",
+    "text": "1.23 実際の空間パターンを見る\n[画面: 0° / 45° / 90° examples]\n代表的な0度、45度、90度を画像として並べます。\n上段が入力。\n下段がMHC後の範囲逸脱量です。\n角度ごとに、逸脱が現れる場所と形が違います。\nここでは、再構成の挙動が値の大きさだけでなく、局所構造にも依存することを見ています。"
+  },
+  {
+    "objectID": "slides/narration.html#shot-noiseとread-noise",
+    "href": "slides/narration.html#shot-noiseとread-noise",
+    "title": "",
+    "section": "1.24 shot noiseとread noise",
+    "text": "1.24 shot noiseとread noise\n[画面: noise covariance table]\nここからは、単一の異常点ではなく、確率的なノイズへ広げます。\n18パーセントの中性面に、shot noise、read noise、その両方を加えます。\nshot noiseはPoisson成分、read noiseはGaussian成分として作った単純なモデルです。\nRAW上では各サイトが1成分だけを持っています。\nところがデモザイク後には、1つのサンプルが複数チャンネルへ共有されるため、RGBノイズに相関が生じます。\n表では、各チャンネルの標準偏差と、チャンネル間相関を比較しています。\nここで見たいのは、センサー上のノイズ源と、完成RGB上のノイズ統計が同じではないという点です。"
+  },
+  {
+    "objectID": "slides/narration.html#散布図でノイズ相関を見る",
+    "href": "slides/narration.html#散布図でノイズ相関を見る",
+    "title": "",
+    "section": "1.25 散布図でノイズ相関を見る",
+    "text": "1.25 散布図でノイズ相関を見る\n[画面: noise correlation scatter]\nこの散布図では、横軸をRマイナスG、縦軸をBマイナスGにしています。\nこれは知覚色空間ではなく、RGBチャンネル間の結びつきを見るための診断座標です。\n列はノイズ源、行はデモザイク法です。\n注目するのは、点群の広がり方と傾きです。\n同じノイズ源でも、BilinearとMHCでは点群の形が変わります。\nつまり、最終画像で見える色差ノイズの構造には、センサー由来の揺らぎだけでなく、再構成法の影響も入っています。"
+  },
+  {
+    "objectID": "slides/narration.html#ホットピクセル強度を連続的に上げる",
+    "href": "slides/narration.html#ホットピクセル強度を連続的に上げる",
+    "title": "",
+    "section": "1.26 ホットピクセル強度を連続的に上げる",
+    "text": "1.26 ホットピクセル強度を連続的に上げる\n[画面: hot strength sweep]\n次は、18パーセントの中性面上で、Rサイト1点だけを0.18から1.0まで連続的に上げます。\n横軸がRAW上の異常値。\n縦軸がWBとCCMの後、clip前の最大成分です。\nここで重要なのは、RAW値は最後まで0から1の範囲内にあることです。\nそれでも後段のRGBは1を超えることがあります。\nつまり、センサー側の飽和と、出力RGB側のheadroomは別の問題です。\nRAWが飽和していなくても、後段の色変換で先に境界へ接触することがあります。"
+  },
+  {
+    "objectID": "slides/narration.html#つのホットピクセルは足し算できるか",
+    "href": "slides/narration.html#つのホットピクセルは足し算できるか",
+    "title": "",
+    "section": "1.27 2つのホットピクセルは足し算できるか",
+    "text": "1.27 2つのホットピクセルは足し算できるか\n[画面: superposition table]\nここで線形性を確認します。\n今回のBilinearとMHCは固定線形です。\nWBも線形です。\nCCMも線形です。\nしたがってclip前までは、二つの入力を別々に処理してから足した結果と、二つを同時に入力して処理した結果が一致するはずです。\n表では、その重ね合わせ誤差がほぼゼロになることを確認しています。"
+  },
+  {
+    "objectID": "slides/narration.html#clipで重ね合わせが壊れる",
+    "href": "slides/narration.html#clipで重ね合わせが壊れる",
+    "title": "",
+    "section": "1.28 clipで重ね合わせが壊れる",
+    "text": "1.28 clipで重ね合わせが壊れる\n[画面: superposition visual]\n右端の差分画像では、clip後に重ね合わせが壊れる位置を示しています。\nclipは非線形なので、\n二つを足してからclipする場合と、\n個別にclipしてから足す場合は、\n一般には一致しません。\n今回のパイプラインでは、どこまでを線形作用素として扱えるかがここではっきり分かります。"
+  },
+  {
+    "objectID": "slides/narration.html#rgb立方体の中で見る",
+    "href": "slides/narration.html#rgb立方体の中で見る",
+    "title": "",
+    "section": "1.29 RGB立方体の中で見る",
+    "text": "1.29 RGB立方体の中で見る\n[画面: RGB cube]\nここまでの局所RGB値を、0から1のRGB立方体の中に置いてみます。\nDemosaicでは、1サンプルから複数のRGBベクトルができます。\nWBでは、それが各軸方向へ引き伸ばされます。\nCCMでは、成分が混ざるので、ベクトルの向きも変わります。\nそしてclipでは、立方体の外にある点が面、辺、頂点へ押し戻されます。\nこの図では、clip前には残っていた「どれだけ外へ出たか」という情報が、clip後には失われることを三次元で確認できます。"
+  },
+  {
+    "objectID": "slides/narration.html#デモザイクを射影として見る",
+    "href": "slides/narration.html#デモザイクを射影として見る",
+    "title": "",
+    "section": "1.30 デモザイクを射影として見る",
+    "text": "1.30 デモザイクを射影として見る\n[画面: oblique projection]\n最後に、デモザイクを少し抽象的に見ます。\nCFAによる観測をSとします。\n元のRGB画像をx、観測されたRAWをyとすると、yイコールSxと書けます。\nBayer CFAではRGBすべてを観測していないため、同じRAW yに対応するRGB画像は一つではありません。\n観測から見えない方向が残ります。\nその方向がkernel Sです。\n同じ観測値を持つ候補は、その方向に沿った集合として考えられます。\nデモザイク作用素Dは、その候補の中から一つのRGB状態を選びます。\n観測値を保存するSDイコールIが成り立つなら、PイコールDSは射影になります。\n図では、同じRAW観測を持つ状態が一つのファイバー上に並び、そのファイバーと再構成空間の交点が、デモザイクによって選ばれる代表点として描かれています。\nこの見方をすると、ここまでの実験を一つの枠組みに入れられます。\n単一ホットピクセルは、非常に局所的な入力を通した場合。\nエッジ角度は、構造を持つ入力を変えた場合。\nノイズ実験は、確率分布を持つ入力を通した場合。\n強度sweepは、同じ入力方向に沿って大きさを変えた場合です。\n違う実験に見えますが、全部、観測から再構成された状態が後段の作用素でどう動くかを見ています。"
+  },
+  {
+    "objectID": "slides/narration.html#まとめ",
+    "href": "slides/narration.html#まとめ",
+    "title": "",
+    "section": "1.31 まとめ",
+    "text": "1.31 まとめ\n[画面: まとめ]\n今回、1点のホットピクセルを追うことで、画像パイプラインのいくつかの性質を分けて見ることができました。\nBayer RAWでは、各サイトが持つのは1成分だけです。\nデモザイクで、その1点の影響は周囲へ広がります。\nBilinearは凸結合なので入力範囲を保ちます。\nMHCは固定線形ですが、負係数を含むので新しい極値を作り得ます。\nその範囲逸脱は、ホットピクセルだけでなく通常の鋭い境界でも起こります。\n異常の伝播はCFA位相にも依存します。\n欠陥補正は、広がる前に行うことで後段への影響を抑えられます。\nWBはチャンネル別に大きさを変え、CCMは成分を混合します。\nclipでは、範囲外へ出た量そのものが見えなくなります。\nノイズについても、センサー上の揺らぎはデモザイク後にRGB相関を持ちます。\nそして固定線形デモザイクからWB、CCMまでは重ね合わせが保たれ、clipでそれが壊れます。\n最終的に見えている色付きの点は、センサー上の1サンプルそのものではなく、こうした複数の処理を通った結果です。"
+  },
+  {
+    "objectID": "slides/narration.html#終わり",
+    "href": "slides/narration.html#終わり",
+    "title": "",
+    "section": "1.32 終わり",
+    "text": "1.32 終わり\n[画面: Article / Source]\n詳しい数式、表、実験コード、図の生成方法は、記事とGitHubリポジトリにまとめています。\n次に進めるなら、AHDやHamilton–Adams、VNGのような適応的デモザイクを加えて、固定線形の場合に見えていた性質が、入力依存の処理でどう変わるかを比較できます。\n今回は、Bayer RAW上の1点から始めて、最終RGBまで追ってみました。"
   }
 ]
