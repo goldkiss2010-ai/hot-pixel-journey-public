@@ -30,7 +30,7 @@ Bayer型の撮像素子では、各受光位置が記録するのは R / G / B �
 
 この記事の内容を図解した日本語の解説動画を公開しています。
 
-[YouTubeで見る](https://youtu.be/g9p0SmkTJ8A)
+[YouTubeで見る](https://youtu.be/grffSH9j76Q)
 :::
 
 ```{python}
